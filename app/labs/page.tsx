@@ -16,9 +16,6 @@ export default function labs() {
          <Link href="/labs/lab3" id="wd-lab3-link">
            Lab 3: JavaScript Fundamentals </Link>
        </li>
-       <li>
-          <Link href="/" id="wd-lab3-link">
-          Kambaz </Link> </li>
      </ul>
    </div>
 );}
