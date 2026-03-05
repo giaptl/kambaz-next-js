@@ -167,7 +167,7 @@ export default function Dashboard() {
                           e.preventDefault();
                           dispatch(
                             unenroll({
-                              userId: currentUser._id,
+                              userId: currentUser?._id,
                               courseId: course._id,
                             }),
                           );
@@ -183,7 +183,7 @@ export default function Dashboard() {
                           e.preventDefault();
                           dispatch(
                             enroll({
-                              userId: currentUser._id,
+                              userId: currentUser?._id,
                               courseId: course._id,
                             }),
                           );
