@@ -1,3 +1,18 @@
+In the Sign Page, login with the following credentials:
+
+FACULTY (edit access for courses, modules, assignments):
+
+- user: iron_man
+
+- pass: stark123
+
+STUDENT (only read access)
+
+- user: dark_knight
+
+- pass: wayne123
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
