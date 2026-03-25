@@ -1,9 +1,9 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../../store";
 import { addAssignment, updateAssignment } from "../reducer";
 import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import {
   Form,
   FormLabel,
@@ -22,6 +22,11 @@ export default function AssignmentEditor() {
   const { assignments } = useSelector(
     (state: RootState) => state.assignmentsReducer,
   );
+
+  const { currentUser } = useSelector(
+    (state: RootState) => state.accountReducer,
+  );
+  const isFaculty = currentUser?.role === "FACULTY";
 
   const existingAssignment = assignments.find((a: any) => a._id === aid);
 
@@ -63,6 +68,7 @@ export default function AssignmentEditor() {
             id="wd-name"
             type="text"
             value={assignment.title}
+            disabled={!isFaculty}
             onChange={(e) =>
               setAssignment({ ...assignment, title: e.target.value })
             }
@@ -74,6 +80,7 @@ export default function AssignmentEditor() {
             id="wd-description"
             rows={10}
             value={assignment.description}
+            disabled={!isFaculty}
             onChange={(e) =>
               setAssignment({ ...assignment, description: e.target.value })
             }
@@ -88,6 +95,7 @@ export default function AssignmentEditor() {
               id="wd-points"
               type="number"
               value={assignment.points}
+              disabled={!isFaculty}
               onChange={(e) =>
                 setAssignment({
                   ...assignment,
@@ -102,7 +110,7 @@ export default function AssignmentEditor() {
             Assignment Group
           </FormLabel>
           <Col sm={9}>
-            <FormSelect id="wd-group">
+            <FormSelect id="wd-group" disabled={!isFaculty}>
               <option>ASSIGNMENTS</option>
             </FormSelect>
           </Col>
@@ -112,7 +120,7 @@ export default function AssignmentEditor() {
             Display Grade as
           </FormLabel>
           <Col sm={9}>
-            <FormSelect id="wd-grade">
+            <FormSelect id="wd-grade" disabled={!isFaculty}>
               <option>Percentage</option>
             </FormSelect>
           </Col>
@@ -123,7 +131,7 @@ export default function AssignmentEditor() {
           </FormLabel>
           <Col sm={9}>
             <div className="border p-3">
-              <FormSelect id="wd-type" className="mb-3">
+              <FormSelect id="wd-type" className="mb-3" disabled={!isFaculty}>
                 <option>Online</option>
               </FormSelect>
               <FormLabel className="fw-bold mb-2">
@@ -134,6 +142,7 @@ export default function AssignmentEditor() {
                 id="wd-text-entry"
                 label="Text Entry"
                 className="mb-2"
+                disabled={!isFaculty}
               />
               <FormCheck
                 type="checkbox"
@@ -141,23 +150,27 @@ export default function AssignmentEditor() {
                 label="Website URL"
                 className="mb-2"
                 defaultChecked
+                disabled={!isFaculty}
               />
               <FormCheck
                 type="checkbox"
                 id="wd-media"
                 label="Media Recordings"
                 className="mb-2"
+                disabled={!isFaculty}
               />
               <FormCheck
                 type="checkbox"
                 id="wd-annotation"
                 label="Student Annotation"
                 className="mb-2"
+                disabled={!isFaculty}
               />
               <FormCheck
                 type="checkbox"
                 id="wd-file-uploads"
                 label="File Uploads"
+                disabled={!isFaculty}
               />
             </div>
           </Col>
@@ -174,6 +187,7 @@ export default function AssignmentEditor() {
                   id="wd-assign-to"
                   type="text"
                   defaultValue="Everyone"
+                  disabled={!isFaculty}
                 />
               </div>
               <div className="mb-3">
@@ -182,6 +196,7 @@ export default function AssignmentEditor() {
                   id="wd-due-date"
                   type="date"
                   value={assignment.dueDate}
+                  disabled={!isFaculty}
                   onChange={(e) =>
                     setAssignment({ ...assignment, dueDate: e.target.value })
                   }
@@ -196,6 +211,7 @@ export default function AssignmentEditor() {
                     id="wd-available-from"
                     type="date"
                     value={assignment.availableFromDate}
+                    disabled={!isFaculty}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
@@ -210,6 +226,7 @@ export default function AssignmentEditor() {
                     id="wd-until"
                     type="date"
                     value={assignment.availableUntilDate}
+                    disabled={!isFaculty}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
@@ -224,20 +241,32 @@ export default function AssignmentEditor() {
         </Row>
         <hr />
         <div className="d-flex justify-content-end gap-2">
-          <Button
-            variant="secondary"
-            onClick={handleCancel}
-            id="wd-cancel-assignment-btn"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleSave}
-            id="wd-save-assignment-btn"
-          >
-            Save
-          </Button>
+          {isFaculty ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+                id="wd-cancel-assignment-btn"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleSave}
+                id="wd-save-assignment-btn"
+              >
+                Save
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="secondary"
+              onClick={handleCancel}
+              id="wd-back-assignment-btn"
+            >
+              Back
+            </Button>
+          )}
         </div>
       </Form>
     </div>
