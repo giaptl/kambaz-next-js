@@ -18,7 +18,7 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
   );
   const [showNavigation, setShowNavigation] = useState(true);
 
-  const course = courses.find((c: any) => c._id === cid);
+  const course = courses.find((c: any) => c._id === cid) as any;
 
   // protect route — redirect if not enrolled
   const isEnrolled = enrollments.some(
