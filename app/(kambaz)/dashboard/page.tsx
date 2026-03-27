@@ -20,7 +20,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { setCourses } from "../courses/reducer";
 
 export default function Dashboard() {
-  const { courses } = useSelector((state: RootState) => state.coursesReducer);
+  const courses = useSelector(
+    (state: RootState) => state.coursesReducer.courses,
+  ) as any[];
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
