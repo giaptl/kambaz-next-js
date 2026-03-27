@@ -1,8 +1,9 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
 import { RootState } from "../../../store";
-import { deleteAssignment } from "./reducer";
+import { setAssignments, deleteAssignment } from "./reducer";
 import { ListGroup, ListGroupItem } from "react-bootstrap";
 import { BsGripVertical } from "react-icons/bs";
 import { SlNote } from "react-icons/sl";
@@ -11,6 +12,7 @@ import { FaTrash } from "react-icons/fa";
 import Link from "next/link";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import AssignmentsControls from "./assignmentsControls";
+import * as client from "./client";
 
 export default function Assignments() {
   const { cid } = useParams();
@@ -19,17 +21,25 @@ export default function Assignments() {
   const { assignments } = useSelector(
     (state: RootState) => state.assignmentsReducer,
   );
-  const courseAssignments = assignments.filter((a: any) => a.course === cid);
-
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
 
-  const handleDelete = (assignmentId: string) => {
+  const fetchAssignments = async () => {
+    const data = await client.findAssignmentsForCourse(cid as string);
+    dispatch(setAssignments(data));
+  };
+
+  useEffect(() => {
+    fetchAssignments();
+  }, [cid]);
+
+  const handleDelete = async (assignmentId: string) => {
     const confirmed = window.confirm(
       "Are you sure you want to remove this assignment?",
     );
     if (confirmed) {
+      await client.deleteAssignment(assignmentId);
       dispatch(deleteAssignment(assignmentId));
     }
   };
@@ -58,7 +68,7 @@ export default function Assignments() {
               </div>
             </div>
             <ListGroup className="wd-lessons rounded-0">
-              {courseAssignments.map((assignment: any) => (
+              {assignments.map((assignment: any) => (
                 <ListGroupItem
                   key={assignment._id}
                   className="wd-lesson p-3 ps-1"
