@@ -125,7 +125,7 @@ export default function WorkingWithObjects() {
 
       <div className="d-flex gap-2 align-items-center mb-3">
         <div className="form-check">
-          <FormControl
+          <input
             className="form-check-input"
             id="wd-assignment-completed"
             type="checkbox"
