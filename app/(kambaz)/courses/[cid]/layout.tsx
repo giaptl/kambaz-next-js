@@ -20,11 +20,11 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
 
   const course = courses.find((c: any) => c._id === cid) as any;
 
-  // protect route — redirect if not enrolled
+  // protect route — redirect if not enrolled (students only)
   const isEnrolled = enrollments.some(
     (e: any) => e.user === currentUser?._id && e.course === cid,
   );
-  if (!isEnrolled) {
+  if (currentUser?.role === "STUDENT" && !isEnrolled) {
     router.push("/dashboard");
     return null;
   }
