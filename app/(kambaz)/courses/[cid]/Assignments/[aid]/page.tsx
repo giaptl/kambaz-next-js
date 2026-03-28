@@ -1,9 +1,10 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { RootState } from "../../../../store";
-import { addAssignment, updateAssignment } from "../reducer";
+import { addAssignment, updateAssignment, setAssignments } from "../reducer";
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import * as client from "../client";
 import {
   Form,
   FormLabel,
@@ -22,7 +23,6 @@ export default function AssignmentEditor() {
   const { assignments } = useSelector(
     (state: RootState) => state.assignmentsReducer,
   );
-
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
@@ -46,11 +46,16 @@ export default function AssignmentEditor() {
     }
   }, [aid]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (existingAssignment) {
-      dispatch(updateAssignment(assignment));
+      const updated = await client.updateAssignment(assignment);
+      dispatch(updateAssignment(updated));
     } else {
-      dispatch(addAssignment({ ...assignment, course: cid }));
+      const created = await client.createAssignment(cid as string, {
+        ...assignment,
+        course: cid,
+      });
+      dispatch(addAssignment(created));
     }
     router.push(`/courses/${cid}/Assignments`);
   };
