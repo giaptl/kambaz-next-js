@@ -1,0 +1,17 @@
+import './Classes.css';
+export default function Classes() {
+  const color = 'blue';
+ const dangerous = true;
+ const notdangerous = false;
+ return (
+   <div id="wd-classes">
+     <h2>Classes</h2>
+     <div className={`${dangerous ? 'wd-bg-red' : 'wd-bg-green'} wd-fg-black wd-padding-10px`}>
+       Dangerous background
+     </div>
+     <div className={`${notdangerous ? 'wd-bg-red' : 'wd-bg-green'} wd-fg-black wd-padding-10px`}>
+       Dynamic Green background
+     </div>
+     </div>)
+};
+
