@@ -61,14 +61,18 @@ export default function Dashboard() {
       return;
     }
     try {
-      const [coursesData, enrollmentData] = await Promise.all([
-        showAllCourses ? client.fetchAllCourses() : client.findMyCourses(),
-        client.findMyEnrollments(),
-      ]);
+      const coursesData = showAllCourses
+        ? await client.fetchAllCourses()
+        : await client.findMyCourses();
       dispatch(setCourses(coursesData));
+    } catch (error) {
+      console.error("Error loading courses:", error);
+    }
+    try {
+      const enrollmentData = await client.findMyEnrollments();
       dispatch(setEnrollments(enrollmentData));
     } catch (error) {
-      console.error(error);
+      console.error("Error loading enrollments:", error);
     }
   }, [currentUser, showAllCourses, dispatch]);
 

@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../../store";
 import { updateQuiz } from "../reducer";
 import {Button, Form, FormCheck, FormControl, FormLabel, FormSelect, Row, Col} from "react-bootstrap";
+import QuizQuestionsEditor from "../QuizQuestionsEditor";
 
 export default function QuizDetailsPage() {
   const { cid, qid } = useParams();
@@ -45,6 +46,7 @@ export default function QuizDetailsPage() {
   );
 
   const [quizSettings, setQuizSettings] = useState<any>(defaultSettings);
+  const [activeTab, setActiveTab] = useState<"details" | "questions">("details");
 
   useEffect(() => {
     if (existingQuiz) {
@@ -86,7 +88,25 @@ export default function QuizDetailsPage() {
 
   return (
     <div className="p-4" id="wd-quiz-details-editor">
-      <h2 className="mb-3">Quiz Details</h2>
+      <ul className="nav nav-tabs mb-4">
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === "details" ? "active" : ""}`}
+            onClick={() => setActiveTab("details")}
+          >
+            Details
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === "questions" ? "active" : ""}`}
+            onClick={() => setActiveTab("questions")}
+          >
+            Questions
+          </button>
+        </li>
+      </ul>
+      {activeTab === "details" && (
       <Form>
         <Row className="mb-3">
           <Col md={6}>
@@ -326,8 +346,12 @@ export default function QuizDetailsPage() {
           >
             Save
           </Button>
-        </div>
+          </div>
       </Form>
+      )}
+      {activeTab === "questions" && qidStr && (
+        <QuizQuestionsEditor quizId={qidStr} />
+      )}
     </div>
   );
 }
