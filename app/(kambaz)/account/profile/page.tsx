@@ -15,13 +15,16 @@ export default function Profile() {
     (state: RootState) => state.accountReducer,
   );
 
-  useEffect(() => {
-    if (!currentUser) {
-      router.push("/account/signin");
-    } else {
-      setProfile(currentUser);
-    }
-  }, []);
+useEffect(() => {
+  if (!currentUser) {
+    router.push("/account/signin");
+  } else {
+    setProfile({
+      ...currentUser,
+      dob: currentUser.dob ? currentUser.dob.substring(0, 10) : "",
+    });
+  }
+}, []);
 
   const signout = async () => {
     await client.signout();

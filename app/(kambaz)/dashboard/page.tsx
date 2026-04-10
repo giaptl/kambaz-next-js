@@ -4,7 +4,6 @@ import * as enrollmentsClient from "../enrollments/client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RootState } from "../store";
-import { enroll, unenroll, setEnrollments } from "../enrollmentsReducer";
 import {
   Row,
   Col,
@@ -26,14 +25,10 @@ export default function Dashboard() {
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
-  const { enrollments } = useSelector(
-    (state: RootState) => state.enrollmentsReducer,
-  );
   const dispatch = useDispatch();
 
-  const [showAllCourses, setShowAllCourses] = useState(
-    currentUser?.role === "FACULTY",
-  );
+  const [showAllCourses, setShowAllCourses] = useState(false);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
 
   const [course, setCourse] = useState<any>({
     _id: "0",
@@ -41,7 +36,6 @@ export default function Dashboard() {
     number: "New Number",
     startDate: "2023-09-10",
     endDate: "2023-12-15",
-    image: "/images/reactjs.jpg",
     description: "New Description",
   });
 
@@ -56,8 +50,8 @@ export default function Dashboard() {
 
   const fetchEnrollments = async () => {
     try {
-      const data = await enrollmentsClient.fetchMyEnrollments();
-      dispatch(setEnrollments(data));
+      const enrolledCourses = await enrollmentsClient.fetchMyEnrollments();
+      setEnrolledCourseIds(enrolledCourses.map((c: any) => c._id));
     } catch (error) {
       console.error("fetchEnrollments error:", error);
     }
@@ -71,17 +65,14 @@ export default function Dashboard() {
     }
   }, [currentUser]);
 
-  const isEnrolled = (courseId: string) =>
-    enrollments.some(
-      (e: any) => e.user === currentUser?._id && e.course === courseId,
-    );
+  const isEnrolled = (courseId: string) => enrolledCourseIds.includes(courseId);
 
   const displayedCourses: any[] =
     currentUser?.role === "FACULTY" ||
     currentUser?.role === "ADMIN" ||
     showAllCourses
       ? courses
-      : (courses as any[]).filter((c) => isEnrolled(c._id));
+      : courses.filter((c) => isEnrolled(c._id));
 
   return (
     <div id="wd-dashboard">
@@ -134,6 +125,24 @@ export default function Dashboard() {
       )}
       <h2 id="wd-dashboard-published">
         Published Courses ({displayedCourses.length})
+        {currentUser?.role === "STUDENT" && (
+          <>
+            <button
+              className="btn btn-primary float-end ms-2"
+              id="wd-all-courses-btn"
+              onClick={() => setShowAllCourses(true)}
+            >
+              All Courses
+            </button>
+            <button
+              className="btn btn-secondary float-end ms-2"
+              id="wd-my-courses-btn"
+              onClick={() => setShowAllCourses(false)}
+            >
+              My Courses
+            </button>
+          </>
+        )}
         <button
           className="btn btn-primary float-end"
           id="wd-enrollments-btn"
@@ -173,7 +182,6 @@ export default function Dashboard() {
                       {course.description}
                     </CardText>
                     <Button variant="primary">Go</Button>
-
                     {currentUser?.role === "FACULTY" && (
                       <>
                         <button
@@ -203,8 +211,7 @@ export default function Dashboard() {
                         </button>
                       </>
                     )}
-
-                    {currentUser?.role === "STUDENT" && (
+                    {currentUser?.role === "STUDENT" && showAllCourses &&(
                       <>
                         {isEnrolled(course._id) ? (
                           <button
@@ -215,13 +222,7 @@ export default function Dashboard() {
                               await enrollmentsClient.unenrollFromCourse(
                                 course._id,
                               );
-                              dispatch(
-                                unenroll({
-                                  userId: currentUser?._id,
-                                  courseId: course._id,
-                                }),
-                              );
-                              fetchCourses();
+                              await fetchEnrollments();
                             }}
                           >
                             Unenroll
@@ -235,13 +236,7 @@ export default function Dashboard() {
                               await enrollmentsClient.enrollInCourse(
                                 course._id,
                               );
-                              dispatch(
-                                enroll({
-                                  userId: currentUser?._id,
-                                  courseId: course._id,
-                                }),
-                              );
-                              fetchCourses();
+                              await fetchEnrollments();
                             }}
                           >
                             Enroll

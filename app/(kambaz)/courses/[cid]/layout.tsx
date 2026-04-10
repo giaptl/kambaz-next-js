@@ -1,10 +1,11 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import CourseNavigation from "./Navigation";
 import { useSelector } from "react-redux";
 import { useParams, useRouter } from "next/navigation";
 import { RootState } from "../../store";
 import { FaAlignJustify } from "react-icons/fa6";
+import * as enrollmentsClient from "../../enrollments/client";
 
 export default function CoursesLayout({ children }: { children: ReactNode }) {
   const { cid } = useParams();
@@ -13,21 +14,34 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
-  const { enrollments } = useSelector(
-    (state: RootState) => state.enrollmentsReducer,
-  );
   const [showNavigation, setShowNavigation] = useState(true);
+  const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
 
   const course = courses.find((c: any) => c._id === cid) as any;
 
-  // protect route — redirect if not enrolled (students only)
-  const isEnrolled = enrollments.some(
-    (e: any) => e.user === currentUser?._id && e.course === cid,
-  );
-  if (currentUser?.role === "STUDENT" && !isEnrolled) {
-    router.push("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    const checkEnrollment = async () => {
+      if (currentUser?.role !== "STUDENT") {
+        setIsEnrolled(true);
+        return;
+      }
+      try {
+        const enrolledCourses = await enrollmentsClient.fetchMyEnrollments();
+        const enrolled = enrolledCourses.some((c: any) => c._id === cid);
+        setIsEnrolled(enrolled);
+        if (!enrolled) {
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        setIsEnrolled(false);
+        router.push("/dashboard");
+      }
+    };
+    checkEnrollment();
+  }, [cid, currentUser]);
+
+  if (isEnrolled === null) return null;
+  if (!isEnrolled) return null;
 
   return (
     <div id="wd-courses">
