@@ -80,7 +80,7 @@ export default function QuizQuestionsEditor({ quizId }: { quizId: string }) {
               <div>
                 <strong>{q.title}</strong>
                 <span className="ms-2 text-muted small">
-                  {q.type === "multiple_choice" ? "Multiple Choice" : q.type === "true_false" ? "True/False" : "Fill in the Blank"} ({q.points}pts)
+                  ({q.type.replace(/_/g, " ")}) — {q.points} pts
                 </span>
               </div>
               <div className="d-flex gap-2">
