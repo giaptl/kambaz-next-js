@@ -1,11 +1,13 @@
 "use client";
 import * as client from "./client";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { setCurrentUser } from "./reducer";
 import { useDispatch } from "react-redux";
 
 export default function Session({ children }: { children: ReactNode }) {
+  const [pending, setPending] = useState(true);
   const dispatch = useDispatch();
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -14,8 +16,13 @@ export default function Session({ children }: { children: ReactNode }) {
       } catch (err: unknown) {
         console.error(err);
       }
+      setPending(false);
     };
     fetchProfile();
   }, [dispatch]);
-  return <>{children}</>;
+
+  if (!pending) {
+    return <>{children}</>;
+  }
+  return null;
 }

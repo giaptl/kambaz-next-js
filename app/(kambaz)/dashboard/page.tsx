@@ -17,12 +17,14 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { setCourses } from "../courses/reducer";
 import * as client from "../courses/client";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const { courses } = useSelector((state: RootState) => state.coursesReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
+  const router = useRouter();
   const { enrollments } = useSelector(
     (state: RootState) => state.enrollmentsReducer,
   );
@@ -61,20 +63,31 @@ export default function Dashboard() {
       return;
     }
     try {
-      const [coursesData, enrollmentData] = await Promise.all([
-        showAllCourses ? client.fetchAllCourses() : client.findMyCourses(),
-        client.findMyEnrollments(),
-      ]);
+      const coursesData = showAllCourses
+        ? await client.fetchAllCourses()
+        : await client.findMyCourses();
       dispatch(setCourses(coursesData));
+    } catch (error) {
+      console.error("Error loading courses:", error);
+    }
+    try {
+      const enrollmentData = await client.findMyEnrollments();
       dispatch(setEnrollments(enrollmentData));
     } catch (error) {
-      console.error(error);
+      console.error("Error loading enrollments:", error);
     }
   }, [currentUser, showAllCourses, dispatch]);
 
   useEffect(() => {
+    if (!currentUser) {
+      router.push("/account/signin");
+    }
     void loadDashboardData();
-  }, [loadDashboardData]);
+  }, [currentUser, router, loadDashboardData]);
+
+  if (!currentUser) {
+    return null;
+  }
 
   const displayedCourses = showAllCourses
     ? courses
