@@ -395,10 +395,6 @@ export default function QuizDetailsPage() {
           </Button>
           </div>
       </Form>
-      )}
-      {activeTab === "questions" && qidStr && (
-        <QuizQuestionsEditor quizId={qidStr} />
-      )}
     </div>
   );
 }
