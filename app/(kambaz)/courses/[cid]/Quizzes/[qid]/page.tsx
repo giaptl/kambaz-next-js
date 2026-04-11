@@ -59,6 +59,7 @@ export default function QuizDetailsPage() {
   );
 
   const [quizSettings, setQuizSettings] = useState<any>(defaultSettings);
+  const [activeTab, setActiveTab] = useState<"details" | "questions">("details");
 
   useEffect(() => {
     if (existingQuiz) {
@@ -392,7 +393,7 @@ export default function QuizDetailsPage() {
           >
             Save
           </Button>
-        </div>
+          </div>
       </Form>
     </div>
   );
