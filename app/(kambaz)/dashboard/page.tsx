@@ -17,12 +17,14 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { setCourses } from "../courses/reducer";
 import * as client from "../courses/client";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const { courses } = useSelector((state: RootState) => state.coursesReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
+  const router = useRouter();
   const { enrollments } = useSelector(
     (state: RootState) => state.enrollmentsReducer,
   );
@@ -73,8 +75,15 @@ export default function Dashboard() {
   }, [currentUser, showAllCourses, dispatch]);
 
   useEffect(() => {
+    if (!currentUser) {
+      router.push("/account/signin");
+    }
     void loadDashboardData();
-  }, [loadDashboardData]);
+  }, [currentUser, router, loadDashboardData]);
+
+  if (!currentUser) {
+    return null;
+  }
 
   const displayedCourses = showAllCourses
     ? courses
