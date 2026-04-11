@@ -35,6 +35,11 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
 
   const course = courses.find((c: any) => c._id === cid);
 
+  if (!currentUser) {
+    router.push("/account/signin");
+    return null;
+  }
+
   // protect route — redirect if not enrolled
   const isEnrolled = enrollments.some(
     (e: { user?: string; course?: string }) =>

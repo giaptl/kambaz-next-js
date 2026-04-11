@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../store";
-import { deleteQuiz } from "./reducer";
+import { deleteQuiz, updateQuiz } from "./reducer";
 import {
   ListGroup,
   ListGroupItem,
@@ -28,21 +28,40 @@ export default function Quizzes() {
   );
   const [search, setSearch] = useState("");
   const [studentView, setStudentView] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const isFaculty = currentUser?.role === "FACULTY" && !studentView;
 
   const courseQuizzes = quizzes
     .filter((q: any) => q.course === cid)
+    .filter((q: any) => isFaculty || q.published)
     .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()));
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setOpenMenuId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const handleDelete = (quizId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to remove this quiz?",
-    );
-    if (confirmed) dispatch(deleteQuiz(quizId));
+    setOpenMenuId(null);
+    if (window.confirm("Are you sure you want to remove this quiz?"))
+      dispatch(deleteQuiz(quizId));
+  };
+
+  const handleTogglePublish = (quiz: any) => {
+    setOpenMenuId(null);
+    dispatch(updateQuiz({ ...quiz, published: !quiz.published }));
   };
 
   return (
     <div>
-      {/* Top Controls*/}
+      {/* Top Controls */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <InputGroup style={{ width: "300px" }}>
           <InputGroup.Text className="bg-white border-end-0">
@@ -56,7 +75,6 @@ export default function Quizzes() {
           />
         </InputGroup>
         <div className="d-flex gap-2 align-items-center">
-          {/* ✅ Student View button */}
           <button
             className="btn btn-secondary"
             onClick={() => setStudentView(!studentView)}
@@ -64,7 +82,7 @@ export default function Quizzes() {
           >
             {studentView ? "Faculty View" : "Student View"}
           </button>
-          {currentUser?.role === "FACULTY" && !studentView && (
+          {isFaculty && (
             <button
               className="btn btn-danger"
               id="wd-add-quiz-btn"
@@ -100,8 +118,21 @@ export default function Quizzes() {
                         {quiz.title}
                       </Link>
                       <div className="d-flex align-items-center gap-3">
-                        <GreenCheckmark />
-                        {currentUser?.role === "FACULTY" && (
+                        {/* Publish toggle icon */}
+                        <span
+                          style={{ cursor: isFaculty ? "pointer" : "default" }}
+                          onClick={() => isFaculty && handleTogglePublish(quiz)}
+                          title={
+                            quiz.published
+                              ? "Click to unpublish"
+                              : "Click to publish"
+                          }
+                        >
+                          {quiz.published ? "✅" : "🚫"}
+                        </span>
+
+                        {/* Trash — faculty only */}
+                        {isFaculty && (
                           <FaTrash
                             className="text-danger"
                             style={{ cursor: "pointer" }}
@@ -109,12 +140,65 @@ export default function Quizzes() {
                             id="wd-delete-quiz-click"
                           />
                         )}
-                        <IoEllipsisVertical
-                          className="fs-4"
-                          style={{ cursor: "pointer" }}
-                        />
+
+                        {/* 3-dot context menu — faculty only */}
+                        {isFaculty && (
+                          <div
+                            className="position-relative"
+                            ref={openMenuId === quiz._id ? menuRef : null}
+                          >
+                            <IoEllipsisVertical
+                              className="fs-4"
+                              style={{ cursor: "pointer" }}
+                              onClick={() =>
+                                setOpenMenuId(
+                                  openMenuId === quiz._id ? null : quiz._id,
+                                )
+                              }
+                            />
+                            {openMenuId === quiz._id && (
+                              <div
+                                className="position-absolute end-0 bg-white border rounded shadow"
+                                style={{
+                                  zIndex: 1000,
+                                  minWidth: "150px",
+                                  top: "24px",
+                                }}
+                              >
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    router.push(
+                                      `/courses/${cid}/Quizzes/${quiz._id}`,
+                                    );
+                                  }}
+                                >
+                                  Edit
+                                </div>
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => handleDelete(quiz._id)}
+                                >
+                                  Delete
+                                </div>
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => handleTogglePublish(quiz)}
+                                >
+                                  {quiz.published ? "Unpublish" : "Publish"}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Quiz meta info */}
                     <div className="small mt-1 text-muted">
                       {quiz.status === "Closed" && (
                         <span className="fw-bold">Closed</span>
