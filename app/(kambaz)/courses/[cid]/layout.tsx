@@ -1,14 +1,17 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import CourseNavigation from "./Navigation";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useParams, useRouter } from "next/navigation";
 import { RootState } from "../../store";
 import { FaAlignJustify } from "react-icons/fa6";
+import { setEnrollments } from "../../enrollmentsReducer";
+import * as coursesClient from "../client";
 
 export default function CoursesLayout({ children }: { children: ReactNode }) {
   const { cid } = useParams();
   const router = useRouter();
+  const dispatch = useDispatch();
   const { courses } = useSelector((state: RootState) => state.coursesReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
@@ -18,24 +21,36 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
   );
   const [showNavigation, setShowNavigation] = useState(true);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    (async () => {
+      try {
+        const data = await coursesClient.findMyEnrollments();
+        dispatch(setEnrollments(data));
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [currentUser?._id, dispatch]);
+
   const course = courses.find((c: any) => c._id === cid);
 
+  if (!currentUser) {
+    router.push("/account/signin");
+    return null;
+  }
+
   // protect route — redirect if not enrolled
-  /*const isEnrolled = enrollments.some(
-    (e: any) => e.user === currentUser?._id && e.course === cid,
+  const isEnrolled = enrollments.some(
+    (e: { user?: string; course?: string }) =>
+      e.user === currentUser?._id && e.course === cid,
   );
-  if (!isEnrolled) {
+  const canAccessCourse =
+    currentUser?.role === "FACULTY" || isEnrolled;
+  if (!canAccessCourse) {
     router.push("/dashboard");
     return null;
-  }*/
-
-  useEffect(() => {
-    if (!currentUser) {
-      router.push("/dashboard");
-    }
-  }, [currentUser, cid]);
-
-  if (!currentUser) return null;
+  }
 
   return (
     <div id="wd-courses">

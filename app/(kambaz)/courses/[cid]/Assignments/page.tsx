@@ -1,8 +1,10 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
+import { useEffect, useCallback } from "react";
 import { RootState } from "../../../store";
-import { deleteAssignment } from "./reducer";
+import { setAssignments } from "./reducer";
+import * as coursesClient from "../../client";
 import { ListGroup, ListGroupItem } from "react-bootstrap";
 import { BsGripVertical } from "react-icons/bs";
 import { SlNote } from "react-icons/sl";
@@ -19,18 +21,44 @@ export default function Assignments() {
   const { assignments } = useSelector(
     (state: RootState) => state.assignmentsReducer,
   );
-  const courseAssignments = assignments.filter((a: any) => a.course === cid);
+  const courseAssignments = assignments.filter((a: { course?: string }) => {
+    return a.course === cid;
+  });
 
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
 
-  const handleDelete = (assignmentId: string) => {
+  const fetchAssignments = useCallback(async () => {
+    if (!cid) return;
+    try {
+      const data = await coursesClient.findAssignmentsForCourse(cid as string);
+      dispatch(setAssignments(data));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [cid, dispatch]);
+
+  useEffect(() => {
+    void fetchAssignments();
+  }, [fetchAssignments]);
+
+  const handleDelete = async (assignmentId: string) => {
     const confirmed = window.confirm(
       "Are you sure you want to remove this assignment?",
     );
-    if (confirmed) {
-      dispatch(deleteAssignment(assignmentId));
+    if (!confirmed) return;
+    try {
+      await coursesClient.deleteAssignment(assignmentId);
+      dispatch(
+        setAssignments(
+          assignments.filter(
+            (a: { _id?: string }) => a._id !== assignmentId,
+          ) as Record<string, unknown>[],
+        ),
+      );
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -58,9 +86,9 @@ export default function Assignments() {
               </div>
             </div>
             <ListGroup className="wd-lessons rounded-0">
-              {courseAssignments.map((assignment: any) => (
+              {courseAssignments.map((assignment: Record<string, unknown>) => (
                 <ListGroupItem
-                  key={assignment._id}
+                  key={String(assignment._id)}
                   className="wd-lesson p-3 ps-1"
                 >
                   <div className="d-flex align-items-center">
@@ -69,16 +97,16 @@ export default function Assignments() {
                     <div className="flex-grow-1">
                       <div className="d-flex justify-content-between align-items-center">
                         <Link
-                          href={`/courses/${cid}/Assignments/${assignment._id}`}
+                          href={`/courses/${cid}/Assignments/${String(assignment._id)}`}
                           className="text-dark text-decoration-none fw-bold"
                         >
-                          {assignment.title}
+                          {String(assignment.title ?? "")}
                         </Link>
                         {currentUser?.role === "FACULTY" && (
                           <FaTrash
                             className="text-danger"
                             style={{ cursor: "pointer" }}
-                            onClick={() => handleDelete(assignment._id)}
+                            onClick={() => void handleDelete(String(assignment._id))}
                             id="wd-delete-assignment-click"
                           />
                         )}
@@ -88,9 +116,11 @@ export default function Assignments() {
                         <span className="text-muted">
                           {" "}
                           | <b>Not available until</b>{" "}
-                          {assignment.availableFromDate} at 12:00am | <b>Due</b>{" "}
-                          {assignment.dueDate} at 11:59pm | {assignment.points}{" "}
-                          pts
+                          {(assignment.availableFrom ??
+                            assignment.availableFromDate) as string}{" "}
+                          at 12:00am | <b>Due</b>{" "}
+                          {String(assignment.dueDate)} at 11:59pm |{" "}
+                          {String(assignment.points)} pts
                         </span>
                       </div>
                     </div>

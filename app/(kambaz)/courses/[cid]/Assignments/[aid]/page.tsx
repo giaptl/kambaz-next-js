@@ -2,8 +2,9 @@
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../../store";
-import { addAssignment, updateAssignment } from "../reducer";
+import { setAssignments } from "../reducer";
 import { useState, useEffect } from "react";
+import * as coursesClient from "../../../client";
 import {
   Form,
   FormLabel,
@@ -23,36 +24,69 @@ export default function AssignmentEditor() {
     (state: RootState) => state.assignmentsReducer,
   );
 
-  const existingAssignment = assignments.find((a: any) => a._id === aid);
-
-  const [assignment, setAssignment] = useState<any>({
+  const [assignment, setAssignment] = useState<Record<string, unknown>>({
     title: "New Assignment",
     description: "",
     points: 100,
     dueDate: "",
-    availableFromDate: "",
-    availableUntilDate: "",
+    availableFrom: "",
+    availableUntil: "",
     course: cid,
   });
 
   useEffect(() => {
-    if (existingAssignment) {
-      setAssignment(existingAssignment);
-    }
+    if (!aid) return;
+    (async () => {
+      try {
+        const a = await coursesClient.findAssignmentById(aid as string);
+        setAssignment(a);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
   }, [aid]);
 
-  const handleSave = () => {
-    if (existingAssignment) {
-      dispatch(updateAssignment(assignment));
-    } else {
-      dispatch(addAssignment({ ...assignment, course: cid }));
+  const handleSave = async () => {
+    if (!cid) return;
+    try {
+      if (aid) {
+        const saved = await coursesClient.updateAssignment({
+          ...assignment,
+          _id: aid as string,
+          course: cid,
+        } as Record<string, unknown> & { _id: string });
+        const sid = (saved as { _id: string })._id;
+        const has = assignments.some((a: { _id?: string }) => a._id === sid);
+        const next = has
+          ? assignments.map((a: { _id?: string }) =>
+              a._id === sid ? saved : a,
+            )
+          : [...assignments, saved];
+        dispatch(setAssignments(next as Record<string, unknown>[]));
+      } else {
+        const { _id: _drop, ...rest } = assignment;
+        const created = await coursesClient.createAssignmentForCourse(
+          cid as string,
+          rest,
+        );
+        dispatch(setAssignments([...assignments, created]));
+      }
+      router.push(`/courses/${cid}/Assignments`);
+    } catch (e) {
+      console.error(e);
     }
-    router.push(`/courses/${cid}/Assignments`);
   };
 
   const handleCancel = () => {
     router.push(`/courses/${cid}/Assignments`);
   };
+
+  const availableFrom = String(
+    assignment.availableFrom ?? assignment.availableFromDate ?? "",
+  );
+  const availableUntil = String(
+    assignment.availableUntil ?? assignment.availableUntilDate ?? "",
+  );
 
   return (
     <div id="wd-assignments-editor" className="p-4">
@@ -62,7 +96,7 @@ export default function AssignmentEditor() {
           <FormControl
             id="wd-name"
             type="text"
-            value={assignment.title}
+            value={String(assignment.title ?? "")}
             onChange={(e) =>
               setAssignment({ ...assignment, title: e.target.value })
             }
@@ -73,7 +107,7 @@ export default function AssignmentEditor() {
             as="textarea"
             id="wd-description"
             rows={10}
-            value={assignment.description}
+            value={String(assignment.description ?? "")}
             onChange={(e) =>
               setAssignment({ ...assignment, description: e.target.value })
             }
@@ -87,11 +121,11 @@ export default function AssignmentEditor() {
             <FormControl
               id="wd-points"
               type="number"
-              value={assignment.points}
+              value={Number(assignment.points ?? 0)}
               onChange={(e) =>
                 setAssignment({
                   ...assignment,
-                  points: parseInt(e.target.value),
+                  points: parseInt(e.target.value, 10) || 0,
                 })
               }
             />
@@ -181,7 +215,7 @@ export default function AssignmentEditor() {
                 <FormControl
                   id="wd-due-date"
                   type="date"
-                  value={assignment.dueDate}
+                  value={String(assignment.dueDate ?? "")}
                   onChange={(e) =>
                     setAssignment({ ...assignment, dueDate: e.target.value })
                   }
@@ -195,11 +229,11 @@ export default function AssignmentEditor() {
                   <FormControl
                     id="wd-available-from"
                     type="date"
-                    value={assignment.availableFromDate}
+                    value={availableFrom}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
-                        availableFromDate: e.target.value,
+                        availableFrom: e.target.value,
                       })
                     }
                   />
@@ -209,11 +243,11 @@ export default function AssignmentEditor() {
                   <FormControl
                     id="wd-until"
                     type="date"
-                    value={assignment.availableUntilDate}
+                    value={availableUntil}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
-                        availableUntilDate: e.target.value,
+                        availableUntil: e.target.value,
                       })
                     }
                   />
@@ -233,7 +267,7 @@ export default function AssignmentEditor() {
           </Button>
           <Button
             variant="danger"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             id="wd-save-assignment-btn"
           >
             Save
