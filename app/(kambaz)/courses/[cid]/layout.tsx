@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import CourseNavigation from "./Navigation";
 import { useSelector } from "react-redux";
 import { useParams, useRouter } from "next/navigation";
@@ -21,13 +21,21 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
   const course = courses.find((c: any) => c._id === cid);
 
   // protect route — redirect if not enrolled
-  const isEnrolled = enrollments.some(
+  /*const isEnrolled = enrollments.some(
     (e: any) => e.user === currentUser?._id && e.course === cid,
   );
   if (!isEnrolled) {
     router.push("/dashboard");
     return null;
-  }
+  }*/
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, cid]);
+
+  if (!currentUser) return null;
 
   return (
     <div id="wd-courses">

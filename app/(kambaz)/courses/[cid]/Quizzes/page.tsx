@@ -3,18 +3,20 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../store";
-import { deleteQuiz } from "./reducer";
+import { deleteQuiz, togglePublish } from "./reducer";
 import {
   ListGroup,
   ListGroupItem,
   FormControl,
   InputGroup,
+  Dropdown,
 } from "react-bootstrap";
 import { BsGripVertical, BsPlus } from "react-icons/bs";
 import { IoEllipsisVertical } from "react-icons/io5";
 import { VscTriangleDown } from "react-icons/vsc";
 import { FaTrash, FaRocket } from "react-icons/fa";
 import { CiSearch } from "react-icons/ci";
+import { FaBan, FaCheckCircle } from "react-icons/fa";
 import GreenCheckmark from "../Modules/GreenCheckmark";
 import Link from "next/link";
 
@@ -28,10 +30,7 @@ export default function Quizzes() {
   );
   const [search, setSearch] = useState("");
   const [studentView, setStudentView] = useState(false);
-
-  const courseQuizzes = quizzes
-    .filter((q: any) => q.course === cid)
-    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()));
+  const [sortBy, setSortBy] = useState("none");
 
   const handleDelete = (quizId: string) => {
     const confirmed = window.confirm(
@@ -40,9 +39,25 @@ export default function Quizzes() {
     if (confirmed) dispatch(deleteQuiz(quizId));
   };
 
+  const courseQuizzes = quizzes
+    .filter((q: any) => q.course === cid)
+    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()))
+    .filter((q: any) => {
+      if (studentView || currentUser?.role === "STUDENT") return q.published;
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === "availableDate") {
+        if (!a.availableFromDate) return 1;
+        if (!b.availableFromDate) return -1;
+        return a.availableFromDate.localeCompare(b.availableFromDate);
+      }
+      return 0;
+    });
+
   return (
     <div>
-      {/* Top Controls*/}
+      {/* Top Controls */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <InputGroup style={{ width: "300px" }}>
           <InputGroup.Text className="bg-white border-end-0">
@@ -56,7 +71,16 @@ export default function Quizzes() {
           />
         </InputGroup>
         <div className="d-flex gap-2 align-items-center">
-          {/* ✅ Student View button */}
+          <select
+            className="form-select"
+            style={{ width: "200px" }}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            id="wd-sort-quizzes"
+          >
+            <option value="none">Sort by...</option>
+            <option value="availableDate">Available Date</option>
+          </select>
           <button
             className="btn btn-secondary"
             onClick={() => setStudentView(!studentView)}
@@ -100,19 +124,57 @@ export default function Quizzes() {
                         {quiz.title}
                       </Link>
                       <div className="d-flex align-items-center gap-3">
-                        <GreenCheckmark />
-                        {currentUser?.role === "FACULTY" && (
-                          <FaTrash
-                            className="text-danger"
+                        {quiz.published ? (
+                          <FaCheckCircle
+                            className="text-success"
                             style={{ cursor: "pointer" }}
-                            onClick={() => handleDelete(quiz._id)}
-                            id="wd-delete-quiz-click"
+                            title="Published - click to unpublish"
+                            onClick={() => dispatch(togglePublish(quiz._id))}
+                            id="wd-publish-quiz-btn"
+                          />
+                        ) : (
+                          <FaBan
+                            className="text-secondary"
+                            style={{ cursor: "pointer" }}
+                            title="Unpublished - click to publish"
+                            onClick={() => dispatch(togglePublish(quiz._id))}
+                            id="wd-unpublish-quiz-btn"
                           />
                         )}
-                        <IoEllipsisVertical
-                          className="fs-4"
-                          style={{ cursor: "pointer" }}
-                        />
+                        {currentUser?.role === "FACULTY" && !studentView && (
+                          <Dropdown>
+                            <Dropdown.Toggle
+                              variant="link"
+                              className="p-0 text-dark"
+                              id={`quiz-menu-${quiz._id}`}
+                            >
+                              <IoEllipsisVertical className="fs-4" />
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu>
+                              <Dropdown.Item
+                                onClick={() =>
+                                  router.push(
+                                    `/courses/${cid}/Quizzes/${quiz._id}/edit`,
+                                  )
+                                }
+                              >
+                                Edit
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                onClick={() => handleDelete(quiz._id)}
+                              >
+                                Delete
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                onClick={() =>
+                                  dispatch(togglePublish(quiz._id))
+                                }
+                              >
+                                {quiz.published ? "Unpublish" : "Publish"}
+                              </Dropdown.Item>
+                            </Dropdown.Menu>
+                          </Dropdown>
+                        )}
                       </div>
                     </div>
                     <div className="small mt-1 text-muted">
