@@ -113,9 +113,20 @@ export default function QuizDetailsPage() {
       {/* Top bar */}
       <div className="d-flex justify-content-end align-items-center mb-3 gap-3">
         <span>Points {quizSettings.points}</span>
-        <span>
-          {quizSettings.published ? "✅ Published" : "🚫 Not Published"}
-        </span>
+        <button
+          className={`btn ${quizSettings.published ? "btn-success" : "btn-secondary"}`}
+          id="wd-publish-quiz-btn"
+          onClick={() => {
+            const updated = {
+              ...quizSettings,
+              published: !quizSettings.published,
+            };
+            setQuizSettings(updated);
+            dispatch(updateQuiz(updated));
+          }}
+        >
+          {quizSettings.published ? "✅ Published" : "🚫 Publish"}
+        </button>
       </div>
 
       {/* Tabs */}
@@ -393,7 +404,7 @@ export default function QuizDetailsPage() {
           >
             Save
           </Button>
-          </div>
+        </div>
       </Form>
     </div>
   );
