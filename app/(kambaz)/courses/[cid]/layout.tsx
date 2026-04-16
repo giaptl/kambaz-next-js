@@ -20,12 +20,12 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
     (state: RootState) => state.enrollmentsReducer,
   );
   const [showNavigation, setShowNavigation] = useState(true);
-  const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
     if (currentUser.role === "FACULTY") {
-      setEnrollmentsLoaded(true);
+      setReady(true);
       return;
     }
     (async () => {
@@ -35,30 +35,37 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error(e);
       } finally {
-        setEnrollmentsLoaded(true);
+        setReady(true);
       }
     })();
   }, [currentUser?._id, currentUser?.role, dispatch]);
 
   const course = courses.find((c: any) => c._id === cid);
 
-  if (!currentUser) {
-    router.push("/account/signin");
-    return null;
-  }
-
-  // protect route — redirect if not enrolled
   const isEnrolled = enrollments.some(
     (e: { user?: string; course?: string }) =>
       e.user === currentUser?._id && e.course === cid,
   );
   const canAccessCourse =
     currentUser?.role === "FACULTY" || isEnrolled;
-  if (currentUser?.role !== "FACULTY" && !enrollmentsLoaded) {
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/account/signin");
+    } else if (ready && !canAccessCourse) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, ready, canAccessCourse, router]);
+
+  if (!currentUser) {
     return null;
   }
+
+  if (!ready) {
+    return null;
+  }
+
   if (!canAccessCourse) {
-    router.push("/dashboard");
     return null;
   }
 

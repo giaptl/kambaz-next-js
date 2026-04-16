@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../../store";
-import { addQuestion, updateQuestion, deleteQuestion } from "./questionsReducer";
+import { setQuestions, addQuestion, updateQuestion, deleteQuestion } from "./questionsReducer";
+import * as client from "../../client";
 import { Button, FormSelect } from "react-bootstrap";
-import { v4 as uuidv4 } from "uuid";
 import MultipleChoiceEditor from "./MultipleChoiceEditor";
 import TrueFalseEditor from "./TrueFalseEditor";
 import FillInBlankEditor from "./FillInBlankEditor";
@@ -16,21 +16,58 @@ export default function QuizQuestionsEditor({ quizId }: { quizId: string }) {
   );
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      const data = await client.findQuestionsForQuiz(quizId);
+      dispatch(setQuestions(data));
+    };
+    fetchQuestions();
+  }, [quizId]);
+
   const totalPoints = questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
 
-  const handleAdd = () => {
-    const newId = uuidv4();
-    dispatch(addQuestion({ quizId, _id: newId }));
-    setEditingId(newId);
+  const syncQuizPoints = async (updatedQuestions: any[]) => {
+    const pts = updatedQuestions.reduce((s: number, q: any) => s + (q.points || 0), 0);
+    await client.updateQuiz({
+      _id: quizId,
+      points: pts,
+      numQuestions: updatedQuestions.length,
+    });
   };
 
-  const handleSave = (updated: any) => {
-    dispatch(updateQuestion(updated));
+  const handleAdd = async () => {
+    const newQuestion = await client.createQuestionForQuiz(quizId, {
+      title: "New Question",
+      type: "multiple_choice",
+      points: 1,
+      question: "",
+      choices: ["", ""],
+      correctAnswer: 0,
+    });
+    dispatch(addQuestion(newQuestion));
+    setEditingId(newQuestion._id);
+    await syncQuizPoints([...questions, newQuestion]);
+  };
+
+  const handleSave = async (updated: any) => {
+    const saved = await client.updateQuestion(updated);
+    dispatch(updateQuestion(saved));
     setEditingId(null);
+    const next = questions.map((q: any) => (q._id === saved._id ? saved : q));
+    await syncQuizPoints(next);
   };
 
-  const handleTypeChange = (q: any, newType: string) => {
-    dispatch(updateQuestion({ ...q, type: newType }));
+  const handleTypeChange = async (q: any, newType: string) => {
+    const updated = { ...q, type: newType };
+    const saved = await client.updateQuestion(updated);
+    dispatch(updateQuestion(saved));
+  };
+
+  const handleDelete = async (questionId: string) => {
+    await client.deleteQuestion(questionId);
+    dispatch(deleteQuestion(questionId));
+    const remaining = questions.filter((q: any) => q._id !== questionId);
+    await syncQuizPoints(remaining);
   };
 
   return (
@@ -87,7 +124,7 @@ export default function QuizQuestionsEditor({ quizId }: { quizId: string }) {
                 <Button size="sm" variant="outline-secondary"
                   onClick={() => setEditingId(q._id)}>Edit</Button>
                 <Button size="sm" variant="outline-danger"
-                  onClick={() => dispatch(deleteQuestion(q._id))}>Delete</Button>
+                  onClick={() => handleDelete(q._id)}>Delete</Button>
               </div>
             </div>
           )}

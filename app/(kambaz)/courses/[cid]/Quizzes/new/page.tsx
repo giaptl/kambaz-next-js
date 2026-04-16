@@ -1,21 +1,19 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { useDispatch } from "react-redux";
 import { useEffect } from "react";
-import { addQuiz } from "../reducer";
+import * as client from "../../../client";
 
 export default function NewQuiz() {
   const { cid } = useParams();
   const router = useRouter();
-  const dispatch = useDispatch();
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
 
   useEffect(() => {
-    const action = dispatch(
-      addQuiz({
+    const createAndRedirect = async () => {
+      if (!cidStr) return;
+      const newQuiz = await client.createQuizForCourse(cidStr, {
         title: "New Quiz",
         description: "",
-        course: cidStr,
         quizType: "Graded Quiz",
         points: 0,
         assignmentGroup: "QUIZZES",
@@ -32,13 +30,10 @@ export default function NewQuiz() {
         availableFromDate: "",
         untilDate: "",
         published: false,
-        questions: [],
-      }),
-    );
-    const newId = (action.payload as any)._id;
-    if (cidStr && newId) {
-      router.replace(`/courses/${cidStr}/Quizzes/${newId}/edit`);
-    }
+      });
+      router.replace(`/courses/${cidStr}/Quizzes/${newQuiz._id}`);
+    };
+    createAndRedirect();
   }, []);
 
   return null;

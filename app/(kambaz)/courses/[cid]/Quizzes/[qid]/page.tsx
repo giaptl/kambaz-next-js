@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "../../../../store";
+import * as client from "../../../client";
 import { Button } from "react-bootstrap";
 
 export default function QuizDetailsPage() {
   const { cid, qid } = useParams();
   const router = useRouter();
-  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
-  const { questions } = useSelector((state: RootState) => state.questionsReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
@@ -18,10 +17,22 @@ export default function QuizDetailsPage() {
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
   const qidStr = Array.isArray(qid) ? qid[0] : qid;
 
-  const existingQuiz = useMemo(
-    () => quizzes.find((q: any) => q._id === qidStr),
-    [quizzes, qidStr],
-  );
+  const [quizSettings, setQuizSettings] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      if (!qidStr) return;
+      const quiz = await client.findQuizById(qidStr);
+      if (quiz) {
+        setQuizSettings(quiz);
+      }
+      setLoaded(true);
+    };
+    fetchQuiz();
+  }, [qidStr]);
+
+  const { questions } = useSelector((state: RootState) => state.questionsReducer);
   const totalPoints = useMemo(
     () =>
       questions
@@ -30,27 +41,30 @@ export default function QuizDetailsPage() {
     [questions, qidStr],
   );
 
+  const isFaculty = currentUser?.role === "FACULTY";
+
+  if (!loaded || !quizSettings) return null;
+
   const details = {
-    title: existingQuiz?.title ?? "Unnamed Quiz",
-    quizType: existingQuiz?.quizType ?? "Graded Quiz",
-    assignmentGroup: existingQuiz?.assignmentGroup ?? "QUIZZES",
-    shuffleAnswers: (existingQuiz?.shuffleAnswers ?? true) ? "Yes" : "No",
-    timeLimit: existingQuiz?.timeLimit ?? 20,
-    multipleAttempts: (existingQuiz?.multipleAttempts ?? false) ? "Yes" : "No",
-    howManyAttempts: existingQuiz?.howManyAttempts ?? 1,
-    showCorrectAnswers: existingQuiz?.showCorrectAnswers ?? "Immediately",
-    accessCode: existingQuiz?.accessCode || "None",
-    oneQuestionAtATime: (existingQuiz?.oneQuestionAtATime ?? true) ? "Yes" : "No",
-    webcamRequired: (existingQuiz?.webcamRequired ?? false) ? "Yes" : "No",
-    lockQuestionsAfterAnswering: (existingQuiz?.lockQuestionsAfterAnswering ?? false)
+    title: quizSettings.title ?? "Unnamed Quiz",
+    quizType: quizSettings.quizType ?? "Graded Quiz",
+    assignmentGroup: quizSettings.assignmentGroup ?? "QUIZZES",
+    shuffleAnswers: (quizSettings.shuffleAnswers ?? true) ? "Yes" : "No",
+    timeLimit: quizSettings.timeLimit ?? 20,
+    multipleAttempts: (quizSettings.multipleAttempts ?? false) ? "Yes" : "No",
+    howManyAttempts: quizSettings.howManyAttempts ?? 1,
+    showCorrectAnswers: quizSettings.showCorrectAnswers ?? "Immediately",
+    accessCode: quizSettings.accessCode || "None",
+    oneQuestionAtATime: (quizSettings.oneQuestionAtATime ?? true) ? "Yes" : "No",
+    webcamRequired: (quizSettings.webcamRequired ?? false) ? "Yes" : "No",
+    lockQuestionsAfterAnswering: (quizSettings.lockQuestionsAfterAnswering ?? false)
       ? "Yes"
       : "No",
-    dueDate: existingQuiz?.dueDate || "—",
-    availableFromDate: existingQuiz?.availableFromDate || "—",
-    untilDate: existingQuiz?.untilDate || "—",
+    dueDate: quizSettings.dueDate || "—",
+    availableFromDate: quizSettings.availableFromDate || "—",
+    untilDate: quizSettings.untilDate || "—",
   };
 
-  const isFaculty = currentUser?.role === "FACULTY";
   if (!isFaculty) {
     return (
       <div className="p-4">

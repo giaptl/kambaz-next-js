@@ -3,7 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../store";
-import { deleteQuiz, updateQuiz } from "./reducer";
+import { setQuizzes, deleteQuiz, updateQuiz } from "./reducer";
+import * as client from "../../client";
 import {
   ListGroup,
   ListGroupItem,
@@ -18,7 +19,7 @@ import { CiSearch } from "react-icons/ci";
 import GreenCheckmark from "../Modules/GreenCheckmark";
 import Link from "next/link";
 
-export default function Quizzes() {
+export default function () {
   const { cid } = useParams();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -32,11 +33,22 @@ export default function Quizzes() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isFaculty = currentUser?.role === "FACULTY" && !studentView;
+  const cidStr = Array.isArray(cid) ? cid[0] : cid;
+
+  const fetchQuizzes = async () => {
+    if (!cidStr) return;
+    const data = await client.findQuizzesForCourse(cidStr);
+    dispatch(setQuizzes(data));
+  };
+
+  useEffect(() => {
+    fetchQuizzes();
+  }, [cidStr]);
 
   const sortBy = "availableDate";
 
   const courseQuizzes = quizzes
-    .filter((q: any) => q.course === cid)
+    .filter((q: any) => q.course === cidStr)
     .filter((q: any) => isFaculty || q.published)
     .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()))
     .sort((a: any, b: any) => {
@@ -48,7 +60,6 @@ export default function Quizzes() {
       return 0;
     });
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node))
@@ -58,15 +69,19 @@ export default function Quizzes() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleDelete = (quizId: string) => {
+  const handleDelete = async (quizId: string) => {
     setOpenMenuId(null);
-    if (window.confirm("Are you sure you want to remove this quiz?"))
+    if (window.confirm("Are you sure you want to remove this quiz?")) {
+      await client.deleteQuiz(quizId);
       dispatch(deleteQuiz(quizId));
+    }
   };
 
-  const handleTogglePublish = (quiz: any) => {
+  const handleTogglePublish = async (quiz: any) => {
     setOpenMenuId(null);
-    dispatch(updateQuiz({ ...quiz, published: !quiz.published }));
+    const updated = { ...quiz, published: !quiz.published };
+    await client.updateQuiz(updated);
+    dispatch(updateQuiz(updated));
   };
 
   

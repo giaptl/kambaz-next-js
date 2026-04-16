@@ -23,6 +23,9 @@ export default function AssignmentEditor() {
   const { assignments } = useSelector(
     (state: RootState) => state.assignmentsReducer,
   );
+  const { currentUser } = useSelector(
+    (state: RootState) => state.accountReducer,
+  );
 
   const [assignment, setAssignment] = useState<Record<string, unknown>>({
     title: "New Assignment",
@@ -88,6 +91,8 @@ export default function AssignmentEditor() {
     assignment.availableUntil ?? assignment.availableUntilDate ?? "",
   );
 
+  const isFaculty = currentUser?.role === "FACULTY";
+
   return (
     <div id="wd-assignments-editor" className="p-4">
       <Form>
@@ -97,6 +102,7 @@ export default function AssignmentEditor() {
             id="wd-name"
             type="text"
             value={String(assignment.title ?? "")}
+            readOnly={!isFaculty}
             onChange={(e) =>
               setAssignment({ ...assignment, title: e.target.value })
             }
@@ -108,6 +114,7 @@ export default function AssignmentEditor() {
             id="wd-description"
             rows={10}
             value={String(assignment.description ?? "")}
+            readOnly={!isFaculty}
             onChange={(e) =>
               setAssignment({ ...assignment, description: e.target.value })
             }
@@ -122,6 +129,7 @@ export default function AssignmentEditor() {
               id="wd-points"
               type="number"
               value={Number(assignment.points ?? 0)}
+              readOnly={!isFaculty}
               onChange={(e) =>
                 setAssignment({
                   ...assignment,
@@ -216,6 +224,7 @@ export default function AssignmentEditor() {
                   id="wd-due-date"
                   type="date"
                   value={String(assignment.dueDate ?? "")}
+                  readOnly={!isFaculty}
                   onChange={(e) =>
                     setAssignment({ ...assignment, dueDate: e.target.value })
                   }
@@ -230,6 +239,7 @@ export default function AssignmentEditor() {
                     id="wd-available-from"
                     type="date"
                     value={availableFrom}
+                    readOnly={!isFaculty}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
@@ -244,6 +254,7 @@ export default function AssignmentEditor() {
                     id="wd-until"
                     type="date"
                     value={availableUntil}
+                    readOnly={!isFaculty}
                     onChange={(e) =>
                       setAssignment({
                         ...assignment,
@@ -263,15 +274,17 @@ export default function AssignmentEditor() {
             onClick={handleCancel}
             id="wd-cancel-assignment-btn"
           >
-            Cancel
+            {isFaculty ? "Cancel" : "Back"}
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => void handleSave()}
-            id="wd-save-assignment-btn"
-          >
-            Save
-          </Button>
+          {isFaculty && (
+            <Button
+              variant="danger"
+              onClick={() => void handleSave()}
+              id="wd-save-assignment-btn"
+            >
+              Save
+            </Button>
+          )}
         </div>
       </Form>
     </div>
