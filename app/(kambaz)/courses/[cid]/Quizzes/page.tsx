@@ -33,10 +33,20 @@ export default function Quizzes() {
 
   const isFaculty = currentUser?.role === "FACULTY" && !studentView;
 
+  const sortBy = "availableDate";
+
   const courseQuizzes = quizzes
     .filter((q: any) => q.course === cid)
     .filter((q: any) => isFaculty || q.published)
-    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()));
+    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a: any, b: any) => {
+      if (sortBy === "availableDate") {
+        if (!a.availableFromDate) return 1;
+        if (!b.availableFromDate) return -1;
+        return a.availableFromDate.localeCompare(b.availableFromDate);
+      }
+      return 0;
+    });
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -58,6 +68,8 @@ export default function Quizzes() {
     setOpenMenuId(null);
     dispatch(updateQuiz({ ...quiz, published: !quiz.published }));
   };
+
+  
 
   return (
     <div>
@@ -130,16 +142,6 @@ export default function Quizzes() {
                         >
                           {quiz.published ? "✅" : "🚫"}
                         </span>
-
-                        {/* Trash — faculty only */}
-                        {isFaculty && (
-                          <FaTrash
-                            className="text-danger"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => handleDelete(quiz._id)}
-                            id="wd-delete-quiz-click"
-                          />
-                        )}
 
                         {/* 3-dot context menu — faculty only */}
                         {isFaculty && (

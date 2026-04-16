@@ -20,18 +20,25 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
     (state: RootState) => state.enrollmentsReducer,
   );
   const [showNavigation, setShowNavigation] = useState(true);
+  const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
+    if (currentUser.role === "FACULTY") {
+      setEnrollmentsLoaded(true);
+      return;
+    }
     (async () => {
       try {
-        const data = await coursesClient.findMyEnrollments();
+        const data = await coursesClient.findMyEnrollments(currentUser._id);
         dispatch(setEnrollments(data));
       } catch (e) {
         console.error(e);
+      } finally {
+        setEnrollmentsLoaded(true);
       }
     })();
-  }, [currentUser?._id, dispatch]);
+  }, [currentUser?._id, currentUser?.role, dispatch]);
 
   const course = courses.find((c: any) => c._id === cid);
 
@@ -47,6 +54,9 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
   );
   const canAccessCourse =
     currentUser?.role === "FACULTY" || isEnrolled;
+  if (currentUser?.role !== "FACULTY" && !enrollmentsLoaded) {
+    return null;
+  }
   if (!canAccessCourse) {
     router.push("/dashboard");
     return null;

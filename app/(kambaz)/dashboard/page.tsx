@@ -65,13 +65,13 @@ export default function Dashboard() {
     try {
       const coursesData = showAllCourses
         ? await client.fetchAllCourses()
-        : await client.findMyCourses();
+        : await client.findMyCourses(currentUser._id);
       dispatch(setCourses(coursesData));
     } catch (error) {
       console.error("Error loading courses:", error);
     }
     try {
-      const enrollmentData = await client.findMyEnrollments();
+      const enrollmentData = await client.findMyEnrollments(currentUser._id);
       dispatch(setEnrollments(enrollmentData));
     } catch (error) {
       console.error("Error loading enrollments:", error);
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
   const handleEnroll = async (courseId: string) => {
     try {
-      await client.enrollInCourse(courseId);
+      await client.enrollInCourse(courseId, currentUser._id);
       await loadDashboardData();
     } catch (e) {
       console.error(e);
@@ -129,7 +129,7 @@ export default function Dashboard() {
 
   const handleUnenroll = async (courseId: string) => {
     try {
-      await client.unenrollFromCourse(courseId);
+      await client.unenrollFromCourse(courseId, currentUser._id);
       await loadDashboardData();
     } catch (e) {
       console.error(e);
