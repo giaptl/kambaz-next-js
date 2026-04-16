@@ -24,9 +24,13 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!currentUser) return;
+    if (currentUser.role === "FACULTY") {
+      setReady(true);
+      return;
+    }
     (async () => {
       try {
-        const data = await coursesClient.findMyEnrollments();
+        const data = await coursesClient.findMyEnrollments(currentUser._id);
         dispatch(setEnrollments(data));
       } catch (e) {
         console.error(e);
@@ -34,7 +38,7 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
         setReady(true);
       }
     })();
-  }, [currentUser?._id, dispatch]);
+  }, [currentUser?._id, currentUser?.role, dispatch]);
 
   const course = courses.find((c: any) => c._id === cid);
 

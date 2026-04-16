@@ -45,10 +45,20 @@ export default function () {
     fetchQuizzes();
   }, [cidStr]);
 
+  const sortBy = "availableDate";
+
   const courseQuizzes = quizzes
     .filter((q: any) => q.course === cidStr)
     .filter((q: any) => isFaculty || q.published)
-    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()));
+    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a: any, b: any) => {
+      if (sortBy === "availableDate") {
+        if (!a.availableFromDate) return 1;
+        if (!b.availableFromDate) return -1;
+        return a.availableFromDate.localeCompare(b.availableFromDate);
+      }
+      return 0;
+    });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -73,6 +83,8 @@ export default function () {
     await client.updateQuiz(updated);
     dispatch(updateQuiz(updated));
   };
+
+  
 
   return (
     <div>
@@ -145,16 +157,6 @@ export default function () {
                         >
                           {quiz.published ? "✅" : "🚫"}
                         </span>
-
-                        {/* Trash — faculty only */}
-                        {isFaculty && (
-                          <FaTrash
-                            className="text-danger"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => handleDelete(quiz._id)}
-                            id="wd-delete-quiz-click"
-                          />
-                        )}
 
                         {/* 3-dot context menu — faculty only */}
                         {isFaculty && (

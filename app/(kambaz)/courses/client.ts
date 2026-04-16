@@ -14,30 +14,35 @@ export const fetchAllCourses = async () => {
   return data;
 };
 
-export const findMyCourses = async () => {
+export const findMyCourses = async (userId = "current") => {
   const { data } = await axiosWithCredentials.get(
-    `${USERS_API}/current/courses`,
+    `${USERS_API}/${userId}/courses`,
   );
   return data;
 };
 
-export const findMyEnrollments = async () => {
-  const { data } = await axiosWithCredentials.get(
-    `${USERS_API}/current/enrollments`,
-  );
-  return data;
+export const findMyEnrollments = async (userId = "current") => {
+  // Backend exposes user courses, not /enrollments.
+  const { data } = await axiosWithCredentials.get(`${USERS_API}/${userId}/courses`);
+  // Normalize to enrollment-like shape used by dashboard isEnrolled().
+  return (data as Array<{ _id?: string }>).map((course) => ({
+    user: userId,
+    course: course._id,
+  }));
 };
 
-export const enrollInCourse = async (courseId: string) => {
+export const enrollInCourse = async (courseId: string, userId = "current") => {
+  // Backend route: POST /api/users/:uid/courses/:cid
   const { data } = await axiosWithCredentials.post(
-    `${USERS_API}/current/courses/${courseId}/enrollment`,
+    `${USERS_API}/${userId}/courses/${courseId}`,
   );
   return data;
 };
 
-export const unenrollFromCourse = async (courseId: string) => {
+export const unenrollFromCourse = async (courseId: string, userId = "current") => {
+  // Backend route: DELETE /api/users/:uid/courses/:cid
   const { data } = await axiosWithCredentials.delete(
-    `${USERS_API}/current/courses/${courseId}/enrollment`,
+    `${USERS_API}/${userId}/courses/${courseId}`,
   );
   return data;
 };

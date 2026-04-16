@@ -47,6 +47,14 @@ export default function Signin() {
         {" "}
         Sign up{" "}
       </Link>
+      <hr />
+      <h6>
+        <b>Names:</b> Gia Patel, Sanya Mittal, Jessica Jain, Sanah Menon,
+        Sreenand Mallisetty
+      </h6>
+      <h6>
+        <b>Section:</b> CS4550 - Online
+      </h6>
     </div>
   );
 }
