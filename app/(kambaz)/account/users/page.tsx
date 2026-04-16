@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { FormControl } from "react-bootstrap";
 import { FaPlus } from "react-icons/fa";
-import PeopleTable from "../../courses/[cid]/people/table/page";
+import PeopleTable from "../../courses/[cid]/People/table/page";
 import * as client from "../client";
 
 export default function Users() {

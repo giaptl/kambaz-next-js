@@ -2,7 +2,8 @@ import axios from "axios";
 
 const axiosWithCredentials = axios.create({ withCredentials: true });
 
-const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER;
+// Fallback to same-origin so local dev works on either 3000/3001.
+const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
 const COURSES_API = `${HTTP_SERVER}/api/courses`;
 const USERS_API = `${HTTP_SERVER}/api/users`;
 const ASSIGNMENTS_API = `${HTTP_SERVER}/api/assignments`;

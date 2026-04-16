@@ -68,7 +68,6 @@ export default function QuizDetailsEditorPage() {
       availableFromDate: existingQuiz.availableFromDate ?? "",
       untilDate: existingQuiz.untilDate ?? "",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingQuiz?._id]);
 
   const set = (key: string, value: any) =>
