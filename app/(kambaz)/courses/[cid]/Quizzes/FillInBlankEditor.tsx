@@ -2,12 +2,17 @@
 import { useState } from "react";
 import { Button, FormControl, FormLabel } from "react-bootstrap";
 
+/**
+ * editor for Fill-in-the-Blank Questions
+ * parent component passes to the editor the question data along with the functions for saving/cancelling editing process
+ */
 export default function FillInBlankEditor({ question, onSave, onCancel }: any) {
   const [local, setLocal] = useState({
     ...question,
     answers: question.answers ?? [""],
   });
 
+  //exchange one value for another, but copy the array to avoid changing state
   const updateAnswer = (i: number, val: string) => {
     const answers = [...local.answers];
     answers[i] = val;
@@ -22,6 +27,7 @@ export default function FillInBlankEditor({ question, onSave, onCancel }: any) {
           value={local.title}
           onChange={(e) => setLocal({ ...local, title: e.target.value })}
         />
+        {/*how many points question is worth*/}
         <FormControl
           type="number"
           style={{ width: "80px" }}
@@ -41,6 +47,7 @@ export default function FillInBlankEditor({ question, onSave, onCancel }: any) {
       />
 
       <FormLabel>Possible Correct Answers</FormLabel>
+      {/* title and points should be placed side by side at the beginning */}
       {local.answers.map((ans: string, i: number) => (
         <div key={i} className="d-flex gap-2 mb-2">
           <FormControl
@@ -57,7 +64,8 @@ export default function FillInBlankEditor({ question, onSave, onCancel }: any) {
       <Button variant="link" onClick={() => setLocal({ ...local, answers: [...local.answers, ""] })}>
         + Add Another Answer
       </Button>
-
+      
+      {/* update sends everything to the parent*/}
       <div className="d-flex gap-2 mt-3">
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button variant="danger" onClick={() => onSave(local)}>Update Question</Button>

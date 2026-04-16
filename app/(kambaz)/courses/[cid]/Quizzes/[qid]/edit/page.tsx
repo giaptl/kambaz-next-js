@@ -1,5 +1,8 @@
 "use client";
 
+// quiz editor page: shows when faculty clicks edit on a quiz
+// has two tabs: details (settings) and questions (add/edit questions)
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,19 +20,29 @@ import {
 } from "react-bootstrap";
 
 export default function QuizDetailsEditorPage() {
+  // get the course id and quiz id from the url
   const { cid, qid } = useParams();
   const router = useRouter();
   const dispatch = useDispatch();
-  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
-  const { questions } = useSelector((state: RootState) => state.questionsReducer);
 
+  // grab all quizzes and questions from redux store
+  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
+  const { questions } = useSelector(
+    (state: RootState) => state.questionsReducer,
+  );
+
+  // make sure cid and qid are strings not arrays (next.js sometimes gives arrays)
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
   const qidStr = Array.isArray(qid) ? qid[0] : qid;
 
+  // find the quiz we're editing from the list of all quizzes
   const existingQuiz = useMemo(
     () => quizzes.find((q: any) => q._id === qidStr),
     [quizzes, qidStr],
   );
+
+  // calculate total points by adding up all question points for this quiz
+  // this updates automatically when questions change
   const totalPoints = useMemo(
     () =>
       questions
@@ -38,6 +51,7 @@ export default function QuizDetailsEditorPage() {
     [questions, qidStr],
   );
 
+  // default values for a new quiz, used when creating or resetting settings
   const [quizSettings, setQuizSettings] = useState<any>({
     title: "Unnamed Quiz",
     description: "",
@@ -57,22 +71,33 @@ export default function QuizDetailsEditorPage() {
     untilDate: "",
     published: false,
   });
-  const [activeTab, setActiveTab] = useState<"details" | "questions">("details");
 
+  // track which tab is open (details or questions)
+  const [activeTab, setActiveTab] = useState<"details" | "questions">(
+    "details",
+  );
+
+  // when the page loads, fill in the form with the existing quiz data
+  // only runs when the quiz id changes so we dont overwrite changes the user made
   useEffect(() => {
     if (!existingQuiz) return;
     setQuizSettings({
       ...quizSettings,
       ...existingQuiz,
+      // make sure dates are empty strings not null (input fields dont like null)
       dueDate: existingQuiz.dueDate ?? "",
       availableFromDate: existingQuiz.availableFromDate ?? "",
       untilDate: existingQuiz.untilDate ?? "",
     });
   }, [existingQuiz?._id]);
 
+  // helper function to update a single field in quiz settings
+  // instead of writing setQuizSettings everywhere we just call set("fieldName", value)
   const set = (key: string, value: any) =>
     setQuizSettings((prev: any) => ({ ...prev, [key]: value }));
 
+  // save the quiz and go back to the quiz details preview page
+  // also updates the points to match the total from all questions
   const saveAndBack = () => {
     if (!existingQuiz) return;
     dispatch(updateQuiz({ ...quizSettings, points: totalPoints }));
@@ -81,8 +106,10 @@ export default function QuizDetailsEditorPage() {
 
   return (
     <div className="p-4" id="wd-quiz-details-editor">
+      {/* top bar showing points and publish status */}
       <div className="d-flex justify-content-end align-items-center mb-3 gap-3">
         <span>Points {totalPoints}</span>
+        {/* clicking this toggles published/unpublished but doesnt save to db yet */}
         <button
           className={`btn ${quizSettings.published ? "btn-success" : "btn-secondary"}`}
           id="wd-publish-quiz-btn"
@@ -92,6 +119,7 @@ export default function QuizDetailsEditorPage() {
         </button>
       </div>
 
+      {/* tabs to switch between details form and questions list */}
       <ul className="nav nav-tabs mb-4">
         <li className="nav-item">
           <button
@@ -111,8 +139,10 @@ export default function QuizDetailsEditorPage() {
         </li>
       </ul>
 
+      {/* details tab - all the quiz settings */}
       {activeTab === "details" && (
         <Form>
+          {/* quiz title input */}
           <div className="mb-3">
             <FormControl
               value={quizSettings.title || ""}
@@ -120,6 +150,7 @@ export default function QuizDetailsEditorPage() {
             />
           </div>
 
+          {/* instructions/description for the quiz */}
           <div className="mb-3">
             <FormLabel>Quiz Instructions:</FormLabel>
             <FormControl
@@ -130,6 +161,7 @@ export default function QuizDetailsEditorPage() {
             />
           </div>
 
+          {/* dropdown for quiz type */}
           <Row className="mb-3 align-items-center">
             <Col md={3} className="text-end">
               <FormLabel>Quiz Type</FormLabel>
@@ -147,6 +179,7 @@ export default function QuizDetailsEditorPage() {
             </Col>
           </Row>
 
+          {/* which assignment group this quiz belongs to */}
           <Row className="mb-3 align-items-center">
             <Col md={3} className="text-end">
               <FormLabel>Assignment Group</FormLabel>
@@ -164,11 +197,13 @@ export default function QuizDetailsEditorPage() {
             </Col>
           </Row>
 
+          {/* all the extra options */}
           <Row className="mb-3">
             <Col md={3} className="text-end">
               <FormLabel>Options</FormLabel>
             </Col>
             <Col md={9}>
+              {/* shuffle answers checkbox */}
               <div className="mb-2">
                 <input
                   className="form-check-input me-2"
@@ -177,11 +212,15 @@ export default function QuizDetailsEditorPage() {
                   onChange={(e) => set("shuffleAnswers", e.target.checked)}
                   id="wd-shuffle-answers"
                 />
-                <label htmlFor="wd-shuffle-answers" className="form-check-label">
+                <label
+                  htmlFor="wd-shuffle-answers"
+                  className="form-check-label"
+                >
                   Shuffle Answers
                 </label>
               </div>
 
+              {/* time limit checkbox: shows number input when checked */}
               <div className="d-flex align-items-center gap-2 mb-2">
                 <input
                   className="form-check-input"
@@ -193,6 +232,7 @@ export default function QuizDetailsEditorPage() {
                 <label htmlFor="wd-time-limit" className="form-check-label">
                   Time Limit
                 </label>
+                {/* only show the minutes input if time limit is enabled */}
                 {quizSettings.timeLimit > 0 && (
                   <>
                     <FormControl
@@ -208,6 +248,7 @@ export default function QuizDetailsEditorPage() {
                 )}
               </div>
 
+              {/* multiple attempts section: shows how many attempts input when enabled */}
               <div className="border rounded p-3 mb-2">
                 <div className="mb-2">
                   <input
@@ -224,6 +265,7 @@ export default function QuizDetailsEditorPage() {
                     Allow Multiple Attempts
                   </label>
                 </div>
+                {/* show attempt count input only if multiple attempts is on */}
                 {quizSettings.multipleAttempts && (
                   <div className="d-flex align-items-center gap-2">
                     <span>How Many Attempts</span>
@@ -233,13 +275,17 @@ export default function QuizDetailsEditorPage() {
                       min={1}
                       value={quizSettings.howManyAttempts}
                       onChange={(e) =>
-                        set("howManyAttempts", parseInt(e.target.value || "1", 10))
+                        set(
+                          "howManyAttempts",
+                          parseInt(e.target.value || "1", 10),
+                        )
                       }
                     />
                   </div>
                 )}
               </div>
 
+              {/* when to show correct answers to students */}
               <Row className="mb-2 align-items-center">
                 <Col xs="auto">
                   <FormLabel className="mb-0">Show Correct Answers:</FormLabel>
@@ -256,6 +302,7 @@ export default function QuizDetailsEditorPage() {
                 </Col>
               </Row>
 
+              {/* optional passcode students need to enter before taking quiz */}
               <Row className="mb-2 align-items-center">
                 <Col xs="auto">
                   <FormLabel className="mb-0">Access Code:</FormLabel>
@@ -269,6 +316,7 @@ export default function QuizDetailsEditorPage() {
                 </Col>
               </Row>
 
+              {/* show one question at a time instead of all at once */}
               <div className="mb-2">
                 <input
                   className="form-check-input me-2"
@@ -282,6 +330,7 @@ export default function QuizDetailsEditorPage() {
                 </label>
               </div>
 
+              {/* require webcam during quiz */}
               <div className="mb-2">
                 <input
                   className="form-check-input me-2"
@@ -295,6 +344,7 @@ export default function QuizDetailsEditorPage() {
                 </label>
               </div>
 
+              {/* prevent students from going back to change answers */}
               <div>
                 <input
                   className="form-check-input me-2"
@@ -312,12 +362,14 @@ export default function QuizDetailsEditorPage() {
             </Col>
           </Row>
 
+          {/* due date and availability dates section */}
           <Row className="mb-3 align-items-center">
             <Col md={3} className="text-end">
               <FormLabel>Assign</FormLabel>
             </Col>
             <Col md={9}>
               <div className="border rounded p-3">
+                {/* assign to field - just shows everyone for now */}
                 <div className="mb-3">
                   <FormLabel>Assign to</FormLabel>
                   <FormControl defaultValue="Everyone" />
@@ -352,10 +404,13 @@ export default function QuizDetailsEditorPage() {
             </Col>
           </Row>
 
+          {/* cancel goes back without saving, save dispatches to redux and goes back */}
           <div className="d-flex justify-content-end gap-2 mb-4">
             <Button
               variant="secondary"
-              onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}`)}
+              onClick={() =>
+                router.push(`/courses/${cidStr}/Quizzes/${qidStr}`)
+              }
             >
               Cancel
             </Button>
@@ -366,8 +421,10 @@ export default function QuizDetailsEditorPage() {
         </Form>
       )}
 
+      {/* questions tab: shows the quiz questions editor component */}
       {activeTab === "questions" && (
         <div>
+          {/* this component handles all the question adding/editing logic */}
           <QuizQuestionsEditor quizId={qidStr || ""} />
           <div className="d-flex justify-content-end mt-3">
             <Button variant="danger" onClick={saveAndBack}>
