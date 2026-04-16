@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "../../../../../store";
@@ -29,11 +29,21 @@ export default function QuizPreviewPage() {
 
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [submitted, setSubmitted] = useState(false);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
 
   const totalPoints = useMemo(
     () => quizQuestions.reduce((sum: number, q: any) => sum + (q.points || 0), 0),
     [quizQuestions],
   );
+  const isFaculty = currentUser?.role === "FACULTY";
+  const maxAttempts = quiz?.multipleAttempts ? quiz?.howManyAttempts || 1 : 1;
+
+  useEffect(() => {
+    if (!currentUser?._id || !qidStr || isFaculty) return;
+    const key = `quiz-attempts-${currentUser._id}-${qidStr}`;
+    const stored = localStorage.getItem(key);
+    setAttemptsUsed(stored ? parseInt(stored, 10) || 0 : 0);
+  }, [currentUser?._id, qidStr, isFaculty]);
 
   const isCorrect = (q: any) => {
     const selected = answers[q._id];
@@ -59,6 +69,20 @@ export default function QuizPreviewPage() {
       return sum + (isCorrect(q) ? q.points || 0 : 0);
     }, 0);
   }, [submitted, quizQuestions, answers]);
+  const attemptsRemaining = Math.max(0, maxAttempts - attemptsUsed);
+  const canStartAttempt = isFaculty || attemptsRemaining > 0;
+  const canRetakeAfterSubmit = isFaculty || attemptsRemaining > 0;
+
+  const submitQuiz = () => {
+    if (!canStartAttempt) return;
+    if (!isFaculty && currentUser?._id && qidStr) {
+      const nextAttempts = attemptsUsed + 1;
+      const key = `quiz-attempts-${currentUser._id}-${qidStr}`;
+      localStorage.setItem(key, String(nextAttempts));
+      setAttemptsUsed(nextAttempts);
+    }
+    setSubmitted(true);
+  };
 
   return (
     <div className="p-4" id="wd-quiz-preview">
@@ -88,6 +112,16 @@ export default function QuizPreviewPage() {
           Preview mode. Answers are not saved to the database.
         </p>
       )}
+      {!isFaculty && (
+        <p className="text-muted">
+          Attempts used: {attemptsUsed} / {maxAttempts}
+        </p>
+      )}
+      {!canStartAttempt && (
+        <div className="alert alert-warning">
+          You have used all attempts for this quiz. Retakes are not allowed.
+        </div>
+      )}
 
       {submitted && (
         <div className="alert alert-info">
@@ -113,7 +147,7 @@ export default function QuizPreviewPage() {
                   type="radio"
                   name={`mc-${q._id}`}
                   checked={Number(answers[q._id]) === cIdx}
-                  disabled={submitted}
+                  disabled={submitted || !canStartAttempt}
                   onChange={() =>
                     setAnswers((prev) => ({ ...prev, [q._id]: cIdx }))
                   }
@@ -134,7 +168,7 @@ export default function QuizPreviewPage() {
                     type="radio"
                     name={`tf-${q._id}`}
                     checked={answers[q._id] === opt}
-                    disabled={submitted}
+                    disabled={submitted || !canStartAttempt}
                     onChange={() =>
                       setAnswers((prev) => ({ ...prev, [q._id]: opt }))
                     }
@@ -155,7 +189,7 @@ export default function QuizPreviewPage() {
             <FormControl
               placeholder="Type your answer"
               value={String(answers[q._id] || "")}
-              disabled={submitted}
+              disabled={submitted || !canStartAttempt}
               onChange={(e) =>
                 setAnswers((prev) => ({ ...prev, [q._id]: e.target.value }))
               }
@@ -177,19 +211,25 @@ export default function QuizPreviewPage() {
 
       <div className="d-flex justify-content-end gap-2">
         {!submitted ? (
-          <Button id="wd-submit-quiz-preview-btn" onClick={() => setSubmitted(true)}>
+          <Button
+            id="wd-submit-quiz-preview-btn"
+            onClick={submitQuiz}
+            disabled={!canStartAttempt}
+          >
             Submit Quiz
           </Button>
         ) : (
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setSubmitted(false);
-              setAnswers({});
-            }}
-          >
-            Retake Preview
-          </Button>
+          canRetakeAfterSubmit && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSubmitted(false);
+                setAnswers({});
+              }}
+            >
+              {isFaculty ? "Retake Preview" : "Retake"}
+            </Button>
+          )
         )}
       </div>
     </div>
