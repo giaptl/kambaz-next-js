@@ -55,7 +55,11 @@ export default function QuizDetailsPage() {
     return (
       <div className="p-4">
         <h2 className="mb-3">{details.title}</h2>
-        <Button id="wd-start-quiz-btn" variant="primary">
+        <Button
+          id="wd-start-quiz-btn"
+          variant="primary"
+          onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)}
+        >
           Start Quiz
         </Button>
       </div>
@@ -65,7 +69,12 @@ export default function QuizDetailsPage() {
   return (
     <div className="p-4" id="wd-quiz-details">
       <div className="d-flex justify-content-center gap-2 mb-3">
-        <Button variant="light" className="border" id="wd-preview-quiz-btn">
+        <Button
+          variant="light"
+          className="border"
+          id="wd-preview-quiz-btn"
+          onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)}
+        >
           Preview
         </Button>
         <Button
