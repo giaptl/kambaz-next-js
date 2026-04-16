@@ -49,14 +49,14 @@ export default function Modules() {
   };
 
   const onRemoveModule = async (moduleId: string) => {
-    await coursesClient.deleteModule(moduleId);
+    await coursesClient.deleteModule(cid as string, moduleId);
     dispatch(
       setModules(modules.filter((m: { _id: string }) => m._id !== moduleId)),
     );
   };
 
   const onUpdateModule = async (module: Record<string, unknown>) => {
-    const saved = await coursesClient.updateModule(module);
+    const saved = await coursesClient.updateModule(cid as string, module);
     dispatch(
       setModules(
         modules.map((m: { _id: string }) =>

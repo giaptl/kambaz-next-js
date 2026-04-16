@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "../../../../store";
-import { updateQuiz } from "../reducer";
+import * as client from "../../../client";
 import {
   Button,
   Form,
@@ -19,9 +19,7 @@ import {
 export default function QuizDetailsPage() {
   const { cid, qid } = useParams();
   const router = useRouter();
-  const dispatch = useDispatch();
 
-  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
@@ -29,51 +27,47 @@ export default function QuizDetailsPage() {
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
   const qidStr = Array.isArray(qid) ? qid[0] : qid;
 
-  const existingQuiz = useMemo(
-    () => quizzes.find((q: any) => q._id === qidStr),
-    [quizzes, qidStr],
-  );
-
-  const defaultSettings = useMemo(
-    () => ({
-      title: "Unnamed Quiz",
-      description: "",
-      quizType: "Graded Quiz",
-      points: existingQuiz?.points ?? 0,
-      assignmentGroup: "QUIZZES",
-      shuffleAnswers: true,
-      timeLimit: 20,
-      multipleAttempts: false,
-      howManyAttempts: 1,
-      showCorrectAnswers: "Immediately",
-      accessCode: "",
-      oneQuestionAtATime: true,
-      webcamRequired: false,
-      lockQuestionsAfterAnswering: false,
-      dueDate: "",
-      availableFromDate: "",
-      untilDate: "",
-      published: false,
-    }),
-    [existingQuiz?.points],
-  );
+  const defaultSettings = {
+    title: "Unnamed Quiz",
+    description: "",
+    quizType: "Graded Quiz",
+    points: 0,
+    assignmentGroup: "QUIZZES",
+    shuffleAnswers: true,
+    timeLimit: 20,
+    multipleAttempts: false,
+    howManyAttempts: 1,
+    showCorrectAnswers: "Immediately",
+    accessCode: "",
+    oneQuestionAtATime: true,
+    webcamRequired: false,
+    lockQuestionsAfterAnswering: false,
+    dueDate: "",
+    availableFromDate: "",
+    untilDate: "",
+    published: false,
+  };
 
   const [quizSettings, setQuizSettings] = useState<any>(defaultSettings);
-  const [activeTab, setActiveTab] = useState<"details" | "questions">("details");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (existingQuiz) {
-      setQuizSettings({
-        ...defaultSettings,
-        ...existingQuiz,
-        dueDate: existingQuiz.dueDate ?? "",
-        availableFromDate: existingQuiz.availableFromDate ?? "",
-        untilDate: existingQuiz.untilDate ?? "",
-      });
-    } else {
-      setQuizSettings(defaultSettings);
-    }
-  }, [existingQuiz, defaultSettings]);
+    const fetchQuiz = async () => {
+      if (!qidStr) return;
+      const quiz = await client.findQuizById(qidStr);
+      if (quiz) {
+        setQuizSettings({
+          ...defaultSettings,
+          ...quiz,
+          dueDate: quiz.dueDate ?? "",
+          availableFromDate: quiz.availableFromDate ?? "",
+          untilDate: quiz.untilDate ?? "",
+        });
+      }
+      setLoaded(true);
+    };
+    fetchQuiz();
+  }, [qidStr]);
 
   const set = (key: string, val: any) =>
     setQuizSettings((prev: any) => ({ ...prev, [key]: val }));
@@ -83,19 +77,18 @@ export default function QuizDetailsPage() {
   const handleCancel = () =>
     cidStr && router.push(`/courses/${cidStr}/Quizzes`);
 
-  const handleSave = () => {
-    if (!existingQuiz) return;
-    dispatch(updateQuiz({ ...quizSettings }));
+  const handleSave = async () => {
+    await client.updateQuiz(quizSettings);
     if (cidStr) router.push(`/courses/${cidStr}/Quizzes`);
   };
 
-  const handleSaveAndPublish = () => {
-    if (!existingQuiz) return;
-    dispatch(updateQuiz({ ...quizSettings, published: true }));
+  const handleSaveAndPublish = async () => {
+    await client.updateQuiz({ ...quizSettings, published: true });
     if (cidStr) router.push(`/courses/${cidStr}/Quizzes`);
   };
 
-  // ── Student view ──────────────────────────────────────────────
+  if (!loaded) return null;
+
   if (!isFaculty) {
     return (
       <div className="p-4">
@@ -107,18 +100,15 @@ export default function QuizDetailsPage() {
     );
   }
 
-  // ── Faculty editor ────────────────────────────────────────────
   return (
     <div className="p-4" id="wd-quiz-details-editor">
-      {/* Top bar */}
       <div className="d-flex justify-content-end align-items-center mb-3 gap-3">
         <span>Points {quizSettings.points}</span>
         <span>
-          {quizSettings.published ? "✅ Published" : "🚫 Not Published"}
+          {quizSettings.published ? "Published" : "Not Published"}
         </span>
       </div>
 
-      {/* Tabs */}
       <ul className="nav nav-tabs mb-4">
         <li className="nav-item">
           <button className="nav-link active">Details</button>
@@ -136,7 +126,6 @@ export default function QuizDetailsPage() {
       </ul>
 
       <Form>
-        {/* Title */}
         <div className="mb-3">
           <FormControl
             value={quizSettings.title || ""}
@@ -144,7 +133,6 @@ export default function QuizDetailsPage() {
           />
         </div>
 
-        {/* Description */}
         <div className="mb-3">
           <FormLabel>Quiz Instructions:</FormLabel>
           <FormControl
@@ -155,7 +143,6 @@ export default function QuizDetailsPage() {
           />
         </div>
 
-        {/* Quiz Type */}
         <Row className="mb-3 align-items-center">
           <Col md={3} className="text-end">
             <FormLabel>Quiz Type</FormLabel>
@@ -173,7 +160,6 @@ export default function QuizDetailsPage() {
           </Col>
         </Row>
 
-        {/* Assignment Group */}
         <Row className="mb-3 align-items-center">
           <Col md={3} className="text-end">
             <FormLabel>Assignment Group</FormLabel>
@@ -191,13 +177,11 @@ export default function QuizDetailsPage() {
           </Col>
         </Row>
 
-        {/* Options */}
         <Row className="mb-3">
           <Col md={3} className="text-end">
             <FormLabel>Options</FormLabel>
           </Col>
           <Col md={9}>
-            {/* Shuffle Answers */}
             <FormCheck
               type="checkbox"
               id="wd-shuffle-answers"
@@ -207,7 +191,6 @@ export default function QuizDetailsPage() {
               onChange={(e) => set("shuffleAnswers", e.target.checked)}
             />
 
-            {/* Time Limit */}
             <div className="d-flex align-items-center gap-2 mb-2">
               <FormCheck
                 type="checkbox"
@@ -231,7 +214,6 @@ export default function QuizDetailsPage() {
               )}
             </div>
 
-            {/* Multiple Attempts */}
             <div className="border rounded p-3 mb-2">
               <FormCheck
                 type="checkbox"
@@ -256,7 +238,6 @@ export default function QuizDetailsPage() {
               )}
             </div>
 
-            {/* Show Correct Answers */}
             <Row className="mb-2 align-items-center">
               <Col xs="auto">
                 <FormLabel className="mb-0">Show Correct Answers:</FormLabel>
@@ -273,7 +254,6 @@ export default function QuizDetailsPage() {
               </Col>
             </Row>
 
-            {/* Access Code */}
             <Row className="mb-2 align-items-center">
               <Col xs="auto">
                 <FormLabel className="mb-0">Access Code:</FormLabel>
@@ -289,7 +269,6 @@ export default function QuizDetailsPage() {
               </Col>
             </Row>
 
-            {/* One Question at a Time */}
             <FormCheck
               type="checkbox"
               id="wd-one-question-at-a-time"
@@ -299,7 +278,6 @@ export default function QuizDetailsPage() {
               onChange={(e) => set("oneQuestionAtATime", e.target.checked)}
             />
 
-            {/* Webcam Required */}
             <FormCheck
               type="checkbox"
               id="wd-webcam-required"
@@ -309,7 +287,6 @@ export default function QuizDetailsPage() {
               onChange={(e) => set("webcamRequired", e.target.checked)}
             />
 
-            {/* Lock Questions After Answering */}
             <FormCheck
               type="checkbox"
               id="wd-lock-questions"
@@ -322,7 +299,6 @@ export default function QuizDetailsPage() {
           </Col>
         </Row>
 
-        {/* Assign */}
         <Row className="mb-3 align-items-center">
           <Col md={3} className="text-end">
             <FormLabel>Assign</FormLabel>
@@ -368,7 +344,6 @@ export default function QuizDetailsPage() {
 
         <hr />
 
-        {/* Buttons */}
         <div className="d-flex justify-content-end gap-2">
           <Button
             variant="secondary"
@@ -380,7 +355,6 @@ export default function QuizDetailsPage() {
           <Button
             variant="success"
             onClick={handleSaveAndPublish}
-            disabled={!existingQuiz}
             id="wd-save-publish-quiz-btn"
           >
             Save &amp; Publish
@@ -388,12 +362,11 @@ export default function QuizDetailsPage() {
           <Button
             variant="danger"
             onClick={handleSave}
-            disabled={!existingQuiz}
             id="wd-save-quiz-btn"
           >
             Save
           </Button>
-          </div>
+        </div>
       </Form>
     </div>
   );

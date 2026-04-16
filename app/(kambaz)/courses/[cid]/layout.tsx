@@ -20,6 +20,7 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
     (state: RootState) => state.enrollmentsReducer,
   );
   const [showNavigation, setShowNavigation] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -29,26 +30,38 @@ export default function CoursesLayout({ children }: { children: ReactNode }) {
         dispatch(setEnrollments(data));
       } catch (e) {
         console.error(e);
+      } finally {
+        setReady(true);
       }
     })();
   }, [currentUser?._id, dispatch]);
 
   const course = courses.find((c: any) => c._id === cid);
 
-  if (!currentUser) {
-    router.push("/account/signin");
-    return null;
-  }
-
-  // protect route — redirect if not enrolled
   const isEnrolled = enrollments.some(
     (e: { user?: string; course?: string }) =>
       e.user === currentUser?._id && e.course === cid,
   );
   const canAccessCourse =
     currentUser?.role === "FACULTY" || isEnrolled;
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/account/signin");
+    } else if (ready && !canAccessCourse) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, ready, canAccessCourse, router]);
+
+  if (!currentUser) {
+    return null;
+  }
+
+  if (!ready) {
+    return null;
+  }
+
   if (!canAccessCourse) {
-    router.push("/dashboard");
     return null;
   }
 

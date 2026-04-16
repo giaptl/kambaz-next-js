@@ -1,5 +1,4 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { v4 as uuidv4 } from "uuid";
 
 const questionsSlice = createSlice({
   name: "questions",
@@ -9,17 +8,7 @@ const questionsSlice = createSlice({
       state.questions = payload;
     },
     addQuestion: (state, { payload }) => {
-      const { quizId, _id } = payload;
-      state.questions.push({
-        _id,
-        quiz: quizId,
-        title: "New Question",
-        type: "multiple_choice",
-        points: 1,
-        question: "",
-        choices: ["", ""],
-        correctAnswer: 0,
-      });
+      state.questions.push(payload);
     },
     updateQuestion: (state, { payload }) => {
       const idx = state.questions.findIndex((q) => q._id === payload._id);

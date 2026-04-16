@@ -30,16 +30,6 @@ export default function Dashboard() {
   );
   const [showAllCourses, setShowAllCourses] = useState(false);
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      if (currentUser?.role === "FACULTY") {
-        setShowAllCourses(true);
-      } else {
-        setShowAllCourses(false);
-      }
-    });
-  }, [currentUser?._id, currentUser?.role]);
-
   const dispatch = useDispatch();
   const [course, setCourse] = useState({
     _id: "0",
@@ -94,28 +84,18 @@ export default function Dashboard() {
     : courses.filter((c) => isEnrolled(c._id as string));
 
   const onAddNewCourse = async () => {
-    const newCourse = await client.createCourse(course);
-    dispatch(setCourses([...courses, newCourse]));
+    await client.createCourse(course);
+    await loadDashboardData();
   };
 
   const onUpdateCourse = async () => {
     await client.updateCourse(course);
-    dispatch(
-      setCourses(
-        courses.map((c) =>
-          (c as { _id: string })._id === course._id ? course : c,
-        ),
-      ),
-    );
+    await loadDashboardData();
   };
 
   const onDeleteCourse = async (courseId: string) => {
     await client.deleteCourse(courseId);
-    dispatch(
-      setCourses(
-        courses.filter((c) => (c as { _id: string })._id !== courseId),
-      ),
-    );
+    await loadDashboardData();
   };
 
   const handleEnroll = async (courseId: string) => {
@@ -148,7 +128,7 @@ export default function Dashboard() {
               className="btn btn-primary float-end"
               id="wd-add-new-course-click"
               onClick={() => {
-                onAddNewCourse();
+                void onAddNewCourse();
               }}
             >
               {" "}
@@ -157,7 +137,7 @@ export default function Dashboard() {
             <button
               className="btn btn-warning float-end me-2"
               onClick={() => {
-                onUpdateCourse();
+                void onUpdateCourse();
               }}
               id="wd-update-course-click"
             >
@@ -228,7 +208,7 @@ export default function Dashboard() {
                         <button
                           onClick={(event) => {
                             event.preventDefault();
-                            onDeleteCourse(courseItem._id as string);
+                            void onDeleteCourse(courseItem._id as string);
                           }}
                           className="btn btn-danger float-end"
                           id="wd-delete-course-click"
