@@ -37,7 +37,7 @@ export default function NewQuiz() {
     );
     const newId = (action.payload as any)._id;
     if (cidStr && newId) {
-      router.replace(`/courses/${cidStr}/Quizzes/${newId}`);
+      router.replace(`/courses/${cidStr}/Quizzes/${newId}/edit`);
     }
   }, []);
 
