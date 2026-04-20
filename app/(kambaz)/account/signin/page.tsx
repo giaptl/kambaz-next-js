@@ -55,6 +55,24 @@ export default function Signin() {
       <h6>
         <b>Section:</b> CS4550 - Online
       </h6>
+      <h6>
+        <b>Front End:</b>{" "}
+        <a
+          href="https://github.com/sanyamit/kambaz-quizzes"
+          target="_blank"
+        >
+          https://github.com/sanyamit/kambaz-quizzes
+        </a>
+      </h6>
+      <h6>
+        <b>Back End:</b>{" "}
+        <a
+          href="https://github.com/sreenand4/kambaz-quizzes-node-server-app"
+          target="_blank"
+        >
+          https://github.com/sreenand4/kambaz-quizzes-node-server-app
+        </a>
+      </h6>
     </div>
   );
 }

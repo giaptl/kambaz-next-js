@@ -16,21 +16,46 @@ export default function QuizDetailsPage() {
 
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
   const qidStr = Array.isArray(qid) ? qid[0] : qid;
+  const isFaculty = currentUser?.role === "FACULTY";
 
   const [quizSettings, setQuizSettings] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
 
+  const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [attemptsLoaded, setAttemptsLoaded] = useState(false);
+
   useEffect(() => {
     const fetchQuiz = async () => {
       if (!qidStr) return;
-      const quiz = await client.findQuizById(qidStr);
-      if (quiz) {
-        setQuizSettings(quiz);
-      }
+      try {
+        const quiz = await client.findQuizById(qidStr);
+        if (quiz) {
+          setQuizSettings(quiz);
+          setLoaded(true);
+          return;
+        }
+      } catch (e) {}
+      // fall back to redux if server doesnt have it yet
+      const localQuiz = quizzes.find((q: any) => q._id === qidStr);
+      if (localQuiz) setQuizSettings(localQuiz);
       setLoaded(true);
     };
     fetchQuiz();
   }, [qidStr]);
+
+  useEffect(() => {
+    if (!currentUser?._id || !qidStr || isFaculty) return;
+    fetch(`${HTTP_SERVER}/api/attempts/${qidStr}/${currentUser._id}/count`, {
+      credentials: "include",
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setAttemptsUsed(data.count || 0);
+        setAttemptsLoaded(true);
+      })
+      .catch(() => setAttemptsLoaded(true));
+  }, [currentUser?._id, qidStr, isFaculty, loaded]);
 
   const { questions } = useSelector((state: RootState) => state.questionsReducer);
   const totalPoints = useMemo(
@@ -41,7 +66,7 @@ export default function QuizDetailsPage() {
     [questions, qidStr],
   );
 
-  const isFaculty = currentUser?.role === "FACULTY";
+  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
 
   if (!loaded || !quizSettings) return null;
 
@@ -66,20 +91,41 @@ export default function QuizDetailsPage() {
   };
 
   if (!isFaculty) {
+    const maxAttempts = quizSettings.multipleAttempts
+      ? quizSettings.howManyAttempts || 1
+      : 1;
+    const hasAttemptsLeft = attemptsUsed < maxAttempts;
+
     return (
       <div className="p-4">
         <h2 className="mb-3">{details.title}</h2>
-        <Button
-          id="wd-start-quiz-btn"
-          variant="primary"
-          onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)}
-        >
-          Start Quiz
-        </Button>
+        <p className="text-muted">
+          Attempts used: {attemptsUsed} / {maxAttempts}
+        </p>
+        {hasAttemptsLeft ? (
+          <Button
+            id="wd-start-quiz-btn"
+            variant="primary"
+            onClick={() =>
+              router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)
+            }
+          >
+            {attemptsUsed > 0 ? "Retake Quiz" : "Start Quiz"}
+          </Button>
+        ) : (
+          <Button
+            id="wd-view-results-btn"
+            variant="secondary"
+            onClick={() =>
+              router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)
+            }
+          >
+            View Last Attempt
+          </Button>
+        )}
       </div>
     );
   }
-
   return (
     <div className="p-4" id="wd-quiz-details">
       <div className="d-flex justify-content-center gap-2 mb-3">

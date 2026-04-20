@@ -3,6 +3,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { useEffect } from "react";
 import { addQuiz } from "../reducer";
+import { v4 as uuidv4 } from "uuid";
 
 // headless route component doesn't show anything
 // it just makes a new quiz and sends you to its edit 
@@ -18,6 +19,7 @@ export default function NewQuiz() {
     //Dispatch synchronously addQuiz is a local reducer so the new ID is available right away on ther action payload thass returned.
     const action = dispatch(
       addQuiz({
+        _id: uuidv4(),
         title: "New Quiz",
         description: "",
         course: cidStr,

@@ -3,6 +3,7 @@
 // quiz editor page: shows when faculty clicks edit on a quiz
 // has two tabs: details (settings) and questions (add/edit questions)
 
+import * as client from "../../../../client";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
@@ -98,9 +99,19 @@ export default function QuizDetailsEditorPage() {
 
   // save the quiz and go back to the quiz details preview page
   // also updates the points to match the total from all questions
-  const saveAndBack = () => {
-    if (!existingQuiz) return;
-    dispatch(updateQuiz({ ...quizSettings, points: totalPoints }));
+  const saveAndBack = async () => {
+    const updatedQuiz = { ...quizSettings, points: totalPoints };
+    dispatch(updateQuiz(updatedQuiz));
+    const existsOnServer = await client
+      .findQuizById(qidStr || "")
+      .catch(() => null);
+    if (existsOnServer) {
+      await client.updateQuiz(updatedQuiz).catch(console.error);
+    } else {
+      await client
+        .createQuizForCourse(cidStr || "", updatedQuiz)
+        .catch(console.error);
+    }
     router.push(`/courses/${cidStr}/Quizzes/${qidStr}`);
   };
 
@@ -409,7 +420,7 @@ export default function QuizDetailsEditorPage() {
             <Button
               variant="secondary"
               onClick={() =>
-                router.push(`/courses/${cidStr}/Quizzes/${qidStr}`)
+                router.push(`/courses/${cidStr}/Quizzes/`)
               }
             >
               Cancel
