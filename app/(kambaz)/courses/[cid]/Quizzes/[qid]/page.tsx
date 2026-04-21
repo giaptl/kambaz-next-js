@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../../store";
+import { updateQuiz as updateQuizRedux } from "../reducer";
 import * as client from "../../../client";
 import { Button } from "react-bootstrap";
 
 export default function QuizDetailsPage() {
   const { cid, qid } = useParams();
   const router = useRouter();
+  const dispatch = useDispatch();
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
@@ -23,7 +25,17 @@ export default function QuizDetailsPage() {
 
   const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
   const [attemptsUsed, setAttemptsUsed] = useState(0);
-  const [attemptsLoaded, setAttemptsLoaded] = useState(false);
+
+  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
+  const { questions } = useSelector((state: RootState) => state.questionsReducer);
+
+  const totalPoints = useMemo(
+    () =>
+      questions
+        .filter((q: any) => q.quiz === qidStr)
+        .reduce((sum: number, q: any) => sum + (q.points || 0), 0),
+    [questions, qidStr],
+  );
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -35,8 +47,9 @@ export default function QuizDetailsPage() {
           setLoaded(true);
           return;
         }
-      } catch (e) {}
-      // fall back to redux if server doesnt have it yet
+      } catch {
+        /* server unavailable, fall through */
+      }
       const localQuiz = quizzes.find((q: any) => q._id === qidStr);
       if (localQuiz) setQuizSettings(localQuiz);
       setLoaded(true);
@@ -52,21 +65,16 @@ export default function QuizDetailsPage() {
       .then((r) => r.json())
       .then((data) => {
         setAttemptsUsed(data.count || 0);
-        setAttemptsLoaded(true);
       })
-      .catch(() => setAttemptsLoaded(true));
+      .catch(() => {});
   }, [currentUser?._id, qidStr, isFaculty, loaded]);
 
-  const { questions } = useSelector((state: RootState) => state.questionsReducer);
-  const totalPoints = useMemo(
-    () =>
-      questions
-        .filter((q: any) => q.quiz === qidStr)
-        .reduce((sum: number, q: any) => sum + (q.points || 0), 0),
-    [questions, qidStr],
-  );
-
-  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
+  const handleTogglePublish = async () => {
+    const updated = { ...quizSettings, published: !quizSettings.published };
+    await client.updateQuiz(updated);
+    dispatch(updateQuizRedux(updated));
+    setQuizSettings(updated);
+  };
 
   if (!loaded || !quizSettings) return null;
 
@@ -129,6 +137,13 @@ export default function QuizDetailsPage() {
   return (
     <div className="p-4" id="wd-quiz-details">
       <div className="d-flex justify-content-center gap-2 mb-3">
+        <Button
+          variant={quizSettings.published ? "success" : "secondary"}
+          id="wd-publish-quiz-btn"
+          onClick={handleTogglePublish}
+        >
+          {quizSettings.published ? "Unpublish" : "Publish"}
+        </Button>
         <Button
           variant="light"
           className="border"

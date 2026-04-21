@@ -115,6 +115,22 @@ export default function QuizDetailsEditorPage() {
     router.push(`/courses/${cidStr}/Quizzes/${qidStr}`);
   };
 
+  const saveAndPublish = async () => {
+    const updatedQuiz = { ...quizSettings, points: totalPoints, published: true };
+    dispatch(updateQuiz(updatedQuiz));
+    const existsOnServer = await client
+      .findQuizById(qidStr || "")
+      .catch(() => null);
+    if (existsOnServer) {
+      await client.updateQuiz(updatedQuiz).catch(console.error);
+    } else {
+      await client
+        .createQuizForCourse(cidStr || "", updatedQuiz)
+        .catch(console.error);
+    }
+    router.push(`/courses/${cidStr}/Quizzes/`);
+  };
+
   return (
     <div className="p-4" id="wd-quiz-details-editor">
       {/* top bar showing points and publish status */}
@@ -415,7 +431,6 @@ export default function QuizDetailsEditorPage() {
             </Col>
           </Row>
 
-          {/* cancel goes back without saving, save dispatches to redux and goes back */}
           <div className="d-flex justify-content-end gap-2 mb-4">
             <Button
               variant="secondary"
@@ -424,6 +439,9 @@ export default function QuizDetailsEditorPage() {
               }
             >
               Cancel
+            </Button>
+            <Button variant="success" onClick={saveAndPublish}>
+              Save &amp; Publish
             </Button>
             <Button variant="danger" onClick={saveAndBack}>
               Save
@@ -435,9 +453,17 @@ export default function QuizDetailsEditorPage() {
       {/* questions tab: shows the quiz questions editor component */}
       {activeTab === "questions" && (
         <div>
-          {/* this component handles all the question adding/editing logic */}
           <QuizQuestionsEditor quizId={qidStr || ""} />
-          <div className="d-flex justify-content-end mt-3">
+          <div className="d-flex justify-content-end gap-2 mt-3">
+            <Button
+              variant="secondary"
+              onClick={() => router.push(`/courses/${cidStr}/Quizzes/`)}
+            >
+              Cancel
+            </Button>
+            <Button variant="success" onClick={saveAndPublish}>
+              Save &amp; Publish
+            </Button>
             <Button variant="danger" onClick={saveAndBack}>
               Save
             </Button>

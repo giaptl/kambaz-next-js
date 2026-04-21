@@ -151,6 +151,14 @@ export default function () {
             <b>Assignment Quizzes</b>
           </div>
           <ListGroup className="rounded-0">
+            {courseQuizzes.length === 0 && (
+              <ListGroupItem className="p-4 text-center text-muted">
+                No quizzes yet.{" "}
+                {isFaculty
+                  ? "Click the + Quiz button above to get started."
+                  : "Check back later for available quizzes."}
+              </ListGroupItem>
+            )}
             {/* one row per quiz */}
             {courseQuizzes.map((quiz: any) => (
               <ListGroupItem key={quiz._id} className="p-3 ps-1">

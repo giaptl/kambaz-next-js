@@ -11,7 +11,6 @@ import { Button, FormControl } from "react-bootstrap";
 
 type AnswerMap = Record<string, string | number>;
 
-// grab the server url from env
 const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
 
 export default function QuizPreviewPage() {
@@ -42,6 +41,7 @@ export default function QuizPreviewPage() {
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [submitted, setSubmitted] = useState(false);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [currentIdx, setCurrentIdx] = useState(0);
 
   const totalPoints = useMemo(
     () =>
@@ -52,12 +52,9 @@ export default function QuizPreviewPage() {
   const isFaculty = currentUser?.role === "FACULTY";
   const maxAttempts = quiz?.multipleAttempts ? quiz?.howManyAttempts || 1 : 1;
 
-  // on load, fetch the students last attempt from the server
-  // if they already took it, show their answers and score
   useEffect(() => {
     if (!currentUser?._id || !qidStr || isFaculty) return;
 
-    // get how many times theyve taken this quiz
     fetch(`${HTTP_SERVER}/api/attempts/${qidStr}/${currentUser._id}/count`, {
       credentials: "include",
     })
@@ -65,7 +62,6 @@ export default function QuizPreviewPage() {
       .then((data) => setAttemptsUsed(data.count || 0))
       .catch(() => setAttemptsUsed(0));
 
-    // load their last attempt answers if they have one
     fetch(`${HTTP_SERVER}/api/attempts/${qidStr}/${currentUser._id}`, {
       credentials: "include",
     })
@@ -79,7 +75,6 @@ export default function QuizPreviewPage() {
       .catch(() => {});
   }, [currentUser?._id, qidStr, isFaculty]);
 
-  // fetch questions from server since they might not be in redux yet
   useEffect(() => {
     if (!qidStr) return;
     client
@@ -108,7 +103,6 @@ export default function QuizPreviewPage() {
     return false;
   };
 
-  // calculate score without needing submitted to be true first
   const score = useMemo(() => {
     return quizQuestions.reduce((sum: number, q: any) => {
       return sum + (isCorrect(q) ? q.points || 0 : 0);
@@ -119,13 +113,11 @@ export default function QuizPreviewPage() {
   const canStartAttempt = isFaculty || attemptsRemaining > 0;
   const canRetakeAfterSubmit = isFaculty || attemptsRemaining > 0;
 
-  // save the attempt to the server when student submits
   const submitQuiz = async () => {
     if (!canStartAttempt) return;
     const nextAttempts = attemptsUsed + 1;
 
     if (!isFaculty && currentUser?._id && qidStr) {
-      // save answers and score to db so they persist across sessions
       await fetch(`${HTTP_SERVER}/api/attempts`, {
         method: "POST",
         credentials: "include",
@@ -143,6 +135,103 @@ export default function QuizPreviewPage() {
     }
     setSubmitted(true);
   };
+
+  const currentQuestion = quizQuestions[currentIdx];
+
+  const renderQuestion = (q: any, idx: number) => (
+    <div
+      className={`border rounded p-3 mb-3 ${
+        submitted ? (isCorrect(q) ? "border-success" : "border-danger") : ""
+      }`}
+    >
+      <div className="d-flex justify-content-between">
+        <h5 className="mb-2">
+          Q{idx + 1}. {q.title || "Untitled Question"}
+        </h5>
+        <span>{q.points || 0} pts</span>
+      </div>
+      <div className="mb-3">{q.question}</div>
+
+      {q.type === "multiple_choice" &&
+        (q.choices || []).map((choice: string, cIdx: number) => (
+          <div key={cIdx} className="form-check mb-1">
+            <input
+              className="form-check-input"
+              type="radio"
+              name={`mc-${q._id}`}
+              checked={Number(answers[q._id]) === cIdx}
+              disabled={submitted || !canStartAttempt}
+              onChange={() =>
+                setAnswers((prev) => ({ ...prev, [q._id]: cIdx }))
+              }
+              id={`mc-${q._id}-${cIdx}`}
+            />
+            <label
+              className="form-check-label"
+              htmlFor={`mc-${q._id}-${cIdx}`}
+            >
+              {choice}
+            </label>
+          </div>
+        ))}
+
+      {q.type === "true_false" && (
+        <div className="d-flex gap-4">
+          {["True", "False"].map((opt) => (
+            <div key={opt} className="form-check">
+              <input
+                className="form-check-input"
+                type="radio"
+                name={`tf-${q._id}`}
+                checked={answers[q._id] === opt}
+                disabled={submitted || !canStartAttempt}
+                onChange={() =>
+                  setAnswers((prev) => ({ ...prev, [q._id]: opt }))
+                }
+                id={`tf-${q._id}-${opt}`}
+              />
+              <label
+                className="form-check-label"
+                htmlFor={`tf-${q._id}-${opt}`}
+              >
+                {opt}
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {q.type === "fill_in_blank" && (
+        <FormControl
+          placeholder="Type your answer"
+          value={String(answers[q._id] || "")}
+          disabled={submitted || !canStartAttempt}
+          onChange={(e) =>
+            setAnswers((prev) => ({ ...prev, [q._id]: e.target.value }))
+          }
+        />
+      )}
+
+      {submitted && (
+        <div
+          className={`mt-3 ${isCorrect(q) ? "text-success" : "text-danger"}`}
+        >
+          {isCorrect(q) ? (
+            "✓ Correct!"
+          ) : (
+            <>
+              ✗ Incorrect. Correct answer:{" "}
+              {q.type === "multiple_choice"
+                ? (q.choices?.[q.correctAnswer] ?? "N/A")
+                : q.type === "true_false"
+                  ? q.correctAnswer
+                  : (q.answers || []).join(" / ")}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-4" id="wd-quiz-preview">
@@ -191,104 +280,61 @@ export default function QuizPreviewPage() {
         </div>
       )}
 
-      {quizQuestions.map((q: any, idx: number) => (
-        <div
-          key={q._id}
-          className={`border rounded p-3 mb-3 ${
-            submitted ? (isCorrect(q) ? "border-success" : "border-danger") : ""
-          }`}
-        >
-          <div className="d-flex justify-content-between">
-            <h5 className="mb-2">
-              Q{idx + 1}. {q.title || "Untitled Question"}
-            </h5>
-            <span>{q.points || 0} pts</span>
+      {quizQuestions.length > 0 && (
+        <div className="row">
+          {/* current question */}
+          <div className="col-md-9">
+            {currentQuestion && renderQuestion(currentQuestion, currentIdx)}
+
+            <div className="d-flex justify-content-between mt-2">
+              <Button
+                variant="outline-secondary"
+                disabled={currentIdx === 0}
+                onClick={() => setCurrentIdx(currentIdx - 1)}
+              >
+                ← Previous
+              </Button>
+              <Button
+                variant="outline-secondary"
+                disabled={currentIdx === quizQuestions.length - 1}
+                onClick={() => setCurrentIdx(currentIdx + 1)}
+              >
+                Next →
+              </Button>
+            </div>
           </div>
-          <div className="mb-3">{q.question}</div>
 
-          {q.type === "multiple_choice" &&
-            (q.choices || []).map((choice: string, cIdx: number) => (
-              <div key={cIdx} className="form-check mb-1">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name={`mc-${q._id}`}
-                  checked={Number(answers[q._id]) === cIdx}
-                  disabled={submitted || !canStartAttempt}
-                  onChange={() =>
-                    setAnswers((prev) => ({ ...prev, [q._id]: cIdx }))
-                  }
-                  id={`mc-${q._id}-${cIdx}`}
-                />
-                <label
-                  className="form-check-label"
-                  htmlFor={`mc-${q._id}-${cIdx}`}
-                >
-                  {choice}
-                </label>
+          {/* question list sidebar for jumping */}
+          <div className="col-md-3">
+            <div className="border rounded p-3">
+              <h6 className="mb-2">Questions</h6>
+              <div className="d-flex flex-column gap-1">
+                {quizQuestions.map((q: any, idx: number) => {
+                  const answered = answers[q._id] !== undefined;
+                  let variant = "outline-secondary";
+                  if (idx === currentIdx) variant = "primary";
+                  else if (submitted && isCorrect(q)) variant = "success";
+                  else if (submitted && !isCorrect(q)) variant = "danger";
+                  else if (answered) variant = "outline-primary";
+
+                  return (
+                    <Button
+                      key={q._id}
+                      size="sm"
+                      variant={variant}
+                      onClick={() => setCurrentIdx(idx)}
+                    >
+                      Question {idx + 1}
+                    </Button>
+                  );
+                })}
               </div>
-            ))}
-
-          {q.type === "true_false" && (
-            <div className="d-flex gap-4">
-              {["True", "False"].map((opt) => (
-                <div key={opt} className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name={`tf-${q._id}`}
-                    checked={answers[q._id] === opt}
-                    disabled={submitted || !canStartAttempt}
-                    onChange={() =>
-                      setAnswers((prev) => ({ ...prev, [q._id]: opt }))
-                    }
-                    id={`tf-${q._id}-${opt}`}
-                  />
-                  <label
-                    className="form-check-label"
-                    htmlFor={`tf-${q._id}-${opt}`}
-                  >
-                    {opt}
-                  </label>
-                </div>
-              ))}
             </div>
-          )}
-
-          {q.type === "fill_in_blank" && (
-            <FormControl
-              placeholder="Type your answer"
-              value={String(answers[q._id] || "")}
-              disabled={submitted || !canStartAttempt}
-              onChange={(e) =>
-                setAnswers((prev) => ({ ...prev, [q._id]: e.target.value }))
-              }
-            />
-          )}
-
-          {/* green checkmark or red x after submitting */}
-          {submitted && (
-            <div
-              className={`mt-3 ${isCorrect(q) ? "text-success" : "text-danger"}`}
-            >
-              {isCorrect(q) ? (
-                "✓ Correct!"
-              ) : (
-                <>
-                  ✗ Incorrect. Correct answer:{" "}
-                  {q.type === "multiple_choice"
-                    ? (q.choices?.[q.correctAnswer] ?? "N/A")
-                    : q.type === "true_false"
-                      ? q.correctAnswer
-                      : (q.answers || []).join(" / ")}
-                </>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-      ))}
+      )}
 
-      <div className="d-flex justify-content-end gap-2">
+      <div className="d-flex justify-content-end gap-2 mt-3">
         {!submitted ? (
           <Button
             id="wd-submit-quiz-preview-btn"
@@ -304,6 +350,7 @@ export default function QuizPreviewPage() {
               onClick={() => {
                 setSubmitted(false);
                 setAnswers({});
+                setCurrentIdx(0);
               }}
             >
               {isFaculty ? "Retake Preview" : "Retake"}
