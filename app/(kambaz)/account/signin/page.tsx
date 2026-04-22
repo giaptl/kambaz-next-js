@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { setCurrentUser } from "../reducer";
 import { useDispatch } from "react-redux";
 import { useState } from "react";
@@ -10,11 +10,12 @@ import * as client from "../client";
 export default function Signin() {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const dispatch = useDispatch();
+  const router = useRouter();
   const signin = async () => {
     const user = await client.signin(credentials);
     if (!user) return;
     dispatch(setCurrentUser(user));
-    redirect("/dashboard");
+    router.push("/dashboard");
   };
   return (
     <div id="wd-signin-screen">
@@ -46,6 +47,32 @@ export default function Signin() {
         {" "}
         Sign up{" "}
       </Link>
+      <hr />
+      <h6>
+        <b>Names:</b> Gia Patel, Sanya Mittal, Jessica Jain, Sanah Menon,
+        Sreenand Mallisetty
+      </h6>
+      <h6>
+        <b>Section:</b> CS4550 - Online
+      </h6>
+      <h6>
+        <b>Front End:</b>{" "}
+        <a
+          href="https://github.com/sanyamit/kambaz-quizzes"
+          target="_blank"
+        >
+          https://github.com/sanyamit/kambaz-quizzes
+        </a>
+      </h6>
+      <h6>
+        <b>Back End:</b>{" "}
+        <a
+          href="https://github.com/sreenand4/kambaz-quizzes-node-server-app"
+          target="_blank"
+        >
+          https://github.com/sreenand4/kambaz-quizzes-node-server-app
+        </a>
+      </h6>
     </div>
   );
 }

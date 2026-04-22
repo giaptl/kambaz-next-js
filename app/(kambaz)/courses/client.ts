@@ -2,41 +2,48 @@ import axios from "axios";
 
 const axiosWithCredentials = axios.create({ withCredentials: true });
 
-const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER;
+// Fallback to same-origin so local dev works on either 3000/3001.
+const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
 const COURSES_API = `${HTTP_SERVER}/api/courses`;
 const USERS_API = `${HTTP_SERVER}/api/users`;
-const MODULES_API = `${HTTP_SERVER}/api/modules`;
 const ASSIGNMENTS_API = `${HTTP_SERVER}/api/assignments`;
+const QUIZZES_API = `${HTTP_SERVER}/api/quizzes`;
+const QUESTIONS_API = `${HTTP_SERVER}/api/questions`;
 
 export const fetchAllCourses = async () => {
   const { data } = await axios.get(COURSES_API);
   return data;
 };
 
-export const findMyCourses = async () => {
+export const findMyCourses = async (userId = "current") => {
   const { data } = await axiosWithCredentials.get(
-    `${USERS_API}/current/courses`,
+    `${USERS_API}/${userId}/courses`,
   );
   return data;
 };
 
-export const findMyEnrollments = async () => {
-  const { data } = await axiosWithCredentials.get(
-    `${USERS_API}/current/enrollments`,
-  );
-  return data;
+export const findMyEnrollments = async (userId = "current") => {
+  // Backend exposes user courses, not /enrollments.
+  const { data } = await axiosWithCredentials.get(`${USERS_API}/${userId}/courses`);
+  // Normalize to enrollment-like shape used by dashboard isEnrolled().
+  return (data as Array<{ _id?: string }>).map((course) => ({
+    user: userId,
+    course: course._id,
+  }));
 };
 
-export const enrollInCourse = async (courseId: string) => {
+export const enrollInCourse = async (courseId: string, userId = "current") => {
+  // Backend route: POST /api/users/:uid/courses/:cid
   const { data } = await axiosWithCredentials.post(
-    `${USERS_API}/current/courses/${courseId}/enrollment`,
+    `${USERS_API}/${userId}/courses/${courseId}`,
   );
   return data;
 };
 
-export const unenrollFromCourse = async (courseId: string) => {
+export const unenrollFromCourse = async (courseId: string, userId = "current") => {
+  // Backend route: DELETE /api/users/:uid/courses/:cid
   const { data } = await axiosWithCredentials.delete(
-    `${USERS_API}/current/courses/${courseId}/enrollment`,
+    `${USERS_API}/${userId}/courses/${courseId}`,
   );
   return data;
 };
@@ -77,17 +84,22 @@ export const createModuleForCourse = async (
   return data;
 };
 
-export const deleteModule = async (moduleId: string) => {
-  const { data } = await axios.delete(`${MODULES_API}/${moduleId}`);
+export const deleteModule = async (courseId: string, moduleId: string) => {
+  const { data } = await axios.delete(
+    `${COURSES_API}/${courseId}/modules/${moduleId}`
+  );
   return data;
 };
 
-export const updateModule = async (module: Record<string, unknown>) => {
+export const updateModule = async (courseId: string, module: Record<string, unknown>) => {
   const _id = module._id as string;
   const { editing: _ed, ...rest } = module as Record<string, unknown> & {
     editing?: boolean;
   };
-  const { data } = await axios.put(`${MODULES_API}/${_id}`, rest);
+  const { data } = await axios.put(
+    `${COURSES_API}/${courseId}/modules/${_id}`,
+    rest
+  );
   return data;
 };
 
@@ -142,5 +154,73 @@ export const createUserForCourse = async (
     `${COURSES_API}/${courseId}/users`,
     user,
   );
+  return data;
+};
+
+// ── Quizzes ──────────────────────────────────────────────────
+
+export const findQuizzesForCourse = async (courseId: string) => {
+  const { data } = await axios.get(`${COURSES_API}/${courseId}/quizzes`);
+  return data;
+};
+
+export const findQuizById = async (quizId: string) => {
+  const { data } = await axios.get(`${QUIZZES_API}/${quizId}`);
+  return data;
+};
+
+export const createQuizForCourse = async (
+  courseId: string,
+  quiz: Record<string, unknown>,
+) => {
+  const { data } = await axios.post(
+    `${COURSES_API}/${courseId}/quizzes`,
+    quiz,
+  );
+  return data;
+};
+
+export const updateQuiz = async (
+  quiz: Record<string, unknown> & { _id: string },
+) => {
+  const { data } = await axios.put(`${QUIZZES_API}/${quiz._id}`, quiz);
+  return data;
+};
+
+export const deleteQuiz = async (quizId: string) => {
+  const { data } = await axios.delete(`${QUIZZES_API}/${quizId}`);
+  return data;
+};
+
+// ── Questions ────────────────────────────────────────────────
+
+export const findQuestionsForQuiz = async (quizId: string) => {
+  const { data } = await axios.get(`${QUIZZES_API}/${quizId}/questions`);
+  return data;
+};
+
+export const createQuestionForQuiz = async (
+  quizId: string,
+  question: Record<string, unknown>,
+) => {
+  const { data } = await axios.post(
+    `${QUIZZES_API}/${quizId}/questions`,
+    question,
+  );
+  return data;
+};
+
+export const updateQuestion = async (
+  question: Record<string, unknown> & { _id: string },
+) => {
+  const { data } = await axios.put(
+    `${QUESTIONS_API}/${question._id}`,
+    question,
+  );
+  return data;
+};
+
+export const deleteQuestion = async (questionId: string) => {
+  const { data } = await axios.delete(`${QUESTIONS_API}/${questionId}`);
   return data;
 };

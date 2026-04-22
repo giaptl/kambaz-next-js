@@ -1,334 +1,221 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../../store";
-import { updateQuiz } from "../reducer";
-import {Button, Form, FormCheck, FormControl, FormLabel, FormSelect, Row, Col} from "react-bootstrap";
+import { updateQuiz as updateQuizRedux } from "../reducer";
+import * as client from "../../../client";
+import { Button } from "react-bootstrap";
 
 export default function QuizDetailsPage() {
   const { cid, qid } = useParams();
   const router = useRouter();
   const dispatch = useDispatch();
-
-  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
-  const { currentUser } = useSelector((state: RootState) => state.accountReducer);
+  const { currentUser } = useSelector(
+    (state: RootState) => state.accountReducer,
+  );
 
   const cidStr = Array.isArray(cid) ? cid[0] : cid;
   const qidStr = Array.isArray(qid) ? qid[0] : qid;
-
-  const existingQuiz = useMemo(
-    () => quizzes.find((q: any) => q._id === qidStr),
-    [quizzes, qidStr]
-  );
-
-  const defaultSettings = useMemo(
-    () => ({
-      quizType: "Graded Quiz",
-      points: existingQuiz?.points ?? 0, // quiz.points
-      assignmentGroup: "Quizzes",
-      shuffleAnswers: true,
-      timeLimit: 20,
-      multipleAttempts: false,
-      howManyAttempts: 1,
-      showCorrectAnswers: "Immediately",
-      accessCode: "",
-      oneQuestionAtATime: true,
-      webcamRequired: false,
-      lockQuestionsAfterAnswering: false,
-      dueDate: "",
-      availableFromDate: "",
-      untilDate: "",
-    }),
-    [existingQuiz?.points]
-  );
-
-  const [quizSettings, setQuizSettings] = useState<any>(defaultSettings);
-
-  useEffect(() => {
-    if (existingQuiz) {
-      setQuizSettings({
-        ...defaultSettings,
-        ...existingQuiz,
-        dueDate: existingQuiz.dueDate ?? "",
-        availableFromDate: existingQuiz.availableFromDate ?? "",
-        untilDate: existingQuiz.untilDate ?? "",
-      });
-    } else {
-      setQuizSettings(defaultSettings);
-    }
-  }, [existingQuiz, defaultSettings]);
-
   const isFaculty = currentUser?.role === "FACULTY";
 
-  const handleCancel = () => {
-    if (!cidStr) return;
-    router.push(`/courses/${cidStr}/Quizzes`);
+  const [quizSettings, setQuizSettings] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  const HTTP_SERVER = process.env.NEXT_PUBLIC_HTTP_SERVER || "";
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
+
+  const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
+  const { questions } = useSelector((state: RootState) => state.questionsReducer);
+
+  const totalPoints = useMemo(
+    () =>
+      questions
+        .filter((q: any) => q.quiz === qidStr)
+        .reduce((sum: number, q: any) => sum + (q.points || 0), 0),
+    [questions, qidStr],
+  );
+
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      if (!qidStr) return;
+      try {
+        const quiz = await client.findQuizById(qidStr);
+        if (quiz) {
+          setQuizSettings(quiz);
+          setLoaded(true);
+          return;
+        }
+      } catch {
+        /* server unavailable, fall through */
+      }
+      const localQuiz = quizzes.find((q: any) => q._id === qidStr);
+      if (localQuiz) setQuizSettings(localQuiz);
+      setLoaded(true);
+    };
+    fetchQuiz();
+  }, [qidStr]);
+
+  useEffect(() => {
+    if (!currentUser?._id || !qidStr || isFaculty) return;
+    fetch(`${HTTP_SERVER}/api/attempts/${qidStr}/${currentUser._id}/count`, {
+      credentials: "include",
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setAttemptsUsed(data.count || 0);
+      })
+      .catch(() => {});
+  }, [currentUser?._id, qidStr, isFaculty, loaded]);
+
+  const handleTogglePublish = async () => {
+    const updated = { ...quizSettings, published: !quizSettings.published };
+    await client.updateQuiz(updated);
+    dispatch(updateQuizRedux(updated));
+    setQuizSettings(updated);
   };
 
-  const handleSave = () => {
-    if (!existingQuiz) return;
-    dispatch(updateQuiz({ ...quizSettings }));
-    if (cidStr) router.push(`/courses/${cidStr}/Quizzes`);
+  if (!loaded || !quizSettings) return null;
+
+  const details = {
+    title: quizSettings.title ?? "Unnamed Quiz",
+    quizType: quizSettings.quizType ?? "Graded Quiz",
+    assignmentGroup: quizSettings.assignmentGroup ?? "QUIZZES",
+    shuffleAnswers: (quizSettings.shuffleAnswers ?? true) ? "Yes" : "No",
+    timeLimit: quizSettings.timeLimit ?? 20,
+    multipleAttempts: (quizSettings.multipleAttempts ?? false) ? "Yes" : "No",
+    howManyAttempts: quizSettings.howManyAttempts ?? 1,
+    showCorrectAnswers: quizSettings.showCorrectAnswers ?? "Immediately",
+    accessCode: quizSettings.accessCode || "None",
+    oneQuestionAtATime: (quizSettings.oneQuestionAtATime ?? true) ? "Yes" : "No",
+    webcamRequired: (quizSettings.webcamRequired ?? false) ? "Yes" : "No",
+    lockQuestionsAfterAnswering: (quizSettings.lockQuestionsAfterAnswering ?? false)
+      ? "Yes"
+      : "No",
+    dueDate: quizSettings.dueDate || "—",
+    availableFromDate: quizSettings.availableFromDate || "—",
+    untilDate: quizSettings.untilDate || "—",
   };
 
   if (!isFaculty) {
+    const maxAttempts = quizSettings.multipleAttempts
+      ? quizSettings.howManyAttempts || 1
+      : 1;
+    const hasAttemptsLeft = attemptsUsed < maxAttempts;
+
     return (
       <div className="p-4">
-        <h2 className="mb-3">Quiz Details</h2>
-        <Button id="wd-start-quiz-btn" variant="primary">
-          Start Quiz
-        </Button>
+        <h2 className="mb-3">{details.title}</h2>
+        <p className="text-muted">
+          Attempts used: {attemptsUsed} / {maxAttempts}
+        </p>
+        {hasAttemptsLeft ? (
+          <Button
+            id="wd-start-quiz-btn"
+            variant="primary"
+            onClick={() =>
+              router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)
+            }
+          >
+            {attemptsUsed > 0 ? "Retake Quiz" : "Start Quiz"}
+          </Button>
+        ) : (
+          <Button
+            id="wd-view-results-btn"
+            variant="secondary"
+            onClick={() =>
+              router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)
+            }
+          >
+            View Last Attempt
+          </Button>
+        )}
       </div>
     );
   }
-
   return (
-    <div className="p-4" id="wd-quiz-details-editor">
-      <h2 className="mb-3">Quiz Details</h2>
-      <Form>
-        <Row className="mb-3">
-          <Col md={6}>
-            <FormLabel>Quiz Type</FormLabel>
-            <FormSelect
-              value={quizSettings.quizType}
-              onChange={(e) =>
-                setQuizSettings({ ...quizSettings, quizType: e.target.value })
-              }
-            >
-              <option>Graded Quiz</option>
-              <option>Practice Quiz</option>
-              <option>Graded Survey</option>
-              <option>Ungraded Survey</option>
-            </FormSelect>
-          </Col>
-          <Col md={6}>
-            <FormLabel>Points</FormLabel>
-            <FormControl type="number" value={quizSettings.points} disabled />
-          </Col>
-        </Row>
+    <div className="p-4" id="wd-quiz-details">
+      <div className="d-flex justify-content-center gap-2 mb-3">
+        <Button
+          variant={quizSettings.published ? "success" : "secondary"}
+          id="wd-publish-quiz-btn"
+          onClick={handleTogglePublish}
+        >
+          {quizSettings.published ? "Unpublish" : "Publish"}
+        </Button>
+        <Button
+          variant="light"
+          className="border"
+          id="wd-preview-quiz-btn"
+          onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}/preview`)}
+        >
+          Preview
+        </Button>
+        <Button
+          variant="light"
+          className="border"
+          id="wd-edit-quiz-btn"
+          onClick={() => router.push(`/courses/${cidStr}/Quizzes/${qidStr}/edit`)}
+        >
+          Edit
+        </Button>
+      </div>
+      <div className="border p-4">
+        <h2 className="mb-4">{details.title}</h2>
+        <div className="row g-2">
+          <div className="col-5 text-end fw-bold">Quiz Type</div>
+          <div className="col-7">{details.quizType}</div>
 
-        <Row className="mb-3">
-          <Col md={6}>
-            <FormLabel>Assignment Group</FormLabel>
-            <FormSelect
-              value={quizSettings.assignmentGroup}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  assignmentGroup: e.target.value,
-                })
-              }
-            >
-              <option>Quizzes</option>
-              <option>Exams</option>
-              <option>Assignments</option>
-              <option>Project</option>
-            </FormSelect>
-          </Col>
-          <Col md={6}>
-            <FormLabel>Shuffle Answers</FormLabel>
-            <FormSelect
-              value={quizSettings.shuffleAnswers ? "Yes" : "No"}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  shuffleAnswers: e.target.value === "Yes",
-                })
-              }
-            >
-              <option>No</option>
-              <option>Yes</option>
-            </FormSelect>
-          </Col>
-        </Row>
+          <div className="col-5 text-end fw-bold">Points</div>
+          <div className="col-7">{totalPoints}</div>
 
-        <Row className="mb-3">
-          <Col md={6}>
-            <FormLabel>Time Limit (minutes)</FormLabel>
-            <FormControl
-              type="number"
-              min={0}
-              value={quizSettings.timeLimit}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  timeLimit: parseInt(e.target.value || "0", 10),
-                })
-              }
-            />
-          </Col>
-          <Col md={6}>
-            <FormLabel>Multiple Attempts</FormLabel>
-            <FormSelect
-              value={quizSettings.multipleAttempts ? "Yes" : "No"}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  multipleAttempts: e.target.value === "Yes",
-                })
-              }
-            >
-              <option>No</option>
-              <option>Yes</option>
-            </FormSelect>
-          </Col>
-        </Row>
+          <div className="col-5 text-end fw-bold">Assignment Group</div>
+          <div className="col-7">{details.assignmentGroup}</div>
 
-        {quizSettings.multipleAttempts && (
-          <Row className="mb-3">
-            <Col md={6}>
-              <FormLabel>How Many Attempts</FormLabel>
-              <FormControl
-                type="number"
-                min={1}
-                value={quizSettings.howManyAttempts}
-                onChange={(e) =>
-                  setQuizSettings({
-                    ...quizSettings,
-                    howManyAttempts: parseInt(e.target.value || "1", 10),
-                  })
-                }
-              />
-            </Col>
-          </Row>
-        )}
+          <div className="col-5 text-end fw-bold">Shuffle Answers</div>
+          <div className="col-7">{details.shuffleAnswers}</div>
 
-        <Row className="mb-3">
-          <Col md={6}>
-            <FormLabel>Show Correct Answers</FormLabel>
-            <FormSelect
-              value={quizSettings.showCorrectAnswers}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  showCorrectAnswers: e.target.value,
-                })
-              }
-            >
-              <option>Immediately</option>
-              <option>After the quiz is submitted</option>
-              <option>Never</option>
-            </FormSelect>
-          </Col>
-          <Col md={6}>
-            <FormLabel>Access Code</FormLabel>
-            <FormControl
-              type="text"
-              value={quizSettings.accessCode}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  accessCode: e.target.value,
-                })
-              }
-              placeholder="Blank (default)"
-            />
-          </Col>
-        </Row>
+          <div className="col-5 text-end fw-bold">Time Limit</div>
+          <div className="col-7">{details.timeLimit} Minutes</div>
 
-        <Row className="mb-2">
-          <Col md={4}>
-            <FormCheck
-              type="checkbox"
-              id="wd-one-question-at-a-time"
-              label="One Question at a Time"
-              checked={!!quizSettings.oneQuestionAtATime}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  oneQuestionAtATime: e.target.checked,
-                })
-              }
-            />
-          </Col>
-          <Col md={4}>
-            <FormCheck
-              type="checkbox"
-              id="wd-webcam-required"
-              label="Webcam Required"
-              checked={!!quizSettings.webcamRequired}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  webcamRequired: e.target.checked,
-                })
-              }
-            />
-          </Col>
-          <Col md={4}>
-            <FormCheck
-              type="checkbox"
-              id="wd-lock-after-answering"
-              label="Lock Questions After Answering"
-              checked={!!quizSettings.lockQuestionsAfterAnswering}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  lockQuestionsAfterAnswering: e.target.checked,
-                })
-              }
-            />
-          </Col>
-        </Row>
+          <div className="col-5 text-end fw-bold">Multiple Attempts</div>
+          <div className="col-7">{details.multipleAttempts}</div>
 
-        <hr />
+          {details.multipleAttempts === "Yes" && (
+            <>
+              <div className="col-5 text-end fw-bold">How Many Attempts</div>
+              <div className="col-7">{details.howManyAttempts}</div>
+            </>
+          )}
 
-        <Row className="mb-3">
-          <Col md={4}>
-            <FormLabel>Due date</FormLabel>
-            <FormControl
-              type="text"
-              value={quizSettings.dueDate}
-              onChange={(e) =>
-                setQuizSettings({ ...quizSettings, dueDate: e.target.value })
-              }
-              placeholder="e.g. Sep 21 at 1pm"
-            />
-          </Col>
-          <Col md={4}>
-            <FormLabel>Available date</FormLabel>
-            <FormControl
-              type="text"
-              value={quizSettings.availableFromDate}
-              onChange={(e) =>
-                setQuizSettings({
-                  ...quizSettings,
-                  availableFromDate: e.target.value,
-                })
-              }
-              placeholder="e.g. Nov 30 at 11:40am"
-            />
-          </Col>
-          <Col md={4}>
-            <FormLabel>Until date</FormLabel>
-            <FormControl
-              type="text"
-              value={quizSettings.untilDate}
-              onChange={(e) =>
-                setQuizSettings({ ...quizSettings, untilDate: e.target.value })
-              }
-              placeholder="e.g. Dec 2 at 11:59pm"
-            />
-          </Col>
-        </Row>
+          <div className="col-5 text-end fw-bold">Show Correct Answers</div>
+          <div className="col-7">{details.showCorrectAnswers}</div>
 
-        <div className="d-flex justify-content-end gap-2">
-          <Button variant="secondary" onClick={handleCancel} id="wd-cancel-quiz-btn">
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleSave}
-            disabled={!existingQuiz}
-            id="wd-save-quiz-btn"
-          >
-            Save
-          </Button>
+          <div className="col-5 text-end fw-bold">Access Code</div>
+          <div className="col-7">{details.accessCode}</div>
+
+          <div className="col-5 text-end fw-bold">One Question at a Time</div>
+          <div className="col-7">{details.oneQuestionAtATime}</div>
+
+          <div className="col-5 text-end fw-bold">Webcam Required</div>
+          <div className="col-7">{details.webcamRequired}</div>
+
+          <div className="col-5 text-end fw-bold">Lock Questions After Answering</div>
+          <div className="col-7">{details.lockQuestionsAfterAnswering}</div>
         </div>
-      </Form>
+
+        <div className="row mt-5 border-top pt-3">
+          <div className="col-3 fw-bold">Due</div>
+          <div className="col-3 fw-bold">For</div>
+          <div className="col-3 fw-bold">Available from</div>
+          <div className="col-3 fw-bold">Until</div>
+          <div className="col-3">{details.dueDate}</div>
+          <div className="col-3">Everyone</div>
+          <div className="col-3">{details.availableFromDate}</div>
+          <div className="col-3">{details.untilDate}</div>
+        </div>
+      </div>
     </div>
   );
 }
-

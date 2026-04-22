@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../../store";
-import { deleteQuiz } from "./reducer";
+import { setQuizzes, deleteQuiz, updateQuiz } from "./reducer";
+import * as client from "../../client";
 import {
   ListGroup,
   ListGroupItem,
@@ -18,36 +19,98 @@ import { CiSearch } from "react-icons/ci";
 import GreenCheckmark from "../Modules/GreenCheckmark";
 import Link from "next/link";
 
-export default function Quizzes() {
+// main quizzes page for a course
+export default function () {
+  // course id from the url
   const { cid } = useParams();
   const router = useRouter();
   const dispatch = useDispatch();
+  // quizzes and user from redux
   const { quizzes } = useSelector((state: RootState) => state.quizzesReducer);
   const { currentUser } = useSelector(
     (state: RootState) => state.accountReducer,
   );
+  // search bar text
   const [search, setSearch] = useState("");
+  // lets faculty see the page like a student would
   const [studentView, setStudentView] = useState(false);
+  // which quiz's menu is open
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  // for detecting clicks outside the menu
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const courseQuizzes = quizzes
-    .filter((q: any) => q.course === cid)
-    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()));
+  // only true if actually faculty and not in student view
+  const isFaculty = currentUser?.role === "FACULTY" && !studentView;
+  // make sure cid is a string
+  const cidStr = Array.isArray(cid) ? cid[0] : cid;
 
-  const handleDelete = (quizId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to remove this quiz?",
-    );
-    if (confirmed) dispatch(deleteQuiz(quizId));
+  // get quizzes from the backend
+  const fetchQuizzes = async () => {
+    if (!cidStr) return;
+    const data = await client.findQuizzesForCourse(cidStr);
+    dispatch(setQuizzes(data));
   };
+
+  // refetch when course changes
+  useEffect(() => {
+    fetchQuizzes();
+  }, [cidStr]);
+
+  const sortBy = "availableDate";
+
+  // filter and sort the quizzes for this course
+  const courseQuizzes = quizzes
+    .filter((q: any) => q.course === cidStr)
+    .filter((q: any) => isFaculty || q.published)
+    .filter((q: any) => q.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a: any, b: any) => {
+      if (sortBy === "availableDate") {
+        // stuff with no date goes to the bottom
+        if (!a.availableFromDate) return 1;
+        if (!b.availableFromDate) return -1;
+        return a.availableFromDate.localeCompare(b.availableFromDate);
+      }
+      return 0;
+    });
+
+  // close menu when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setOpenMenuId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // delete a quiz after confirming
+  const handleDelete = async (quizId: string) => {
+    setOpenMenuId(null);
+    if (window.confirm("Are you sure you want to remove this quiz?")) {
+      await client.deleteQuiz(quizId);
+      dispatch(deleteQuiz(quizId));
+    }
+  };
+
+  // publish or unpublish
+  const handleTogglePublish = async (quiz: any) => {
+    setOpenMenuId(null);
+    const updated = { ...quiz, published: !quiz.published };
+    await client.updateQuiz(updated);
+    dispatch(updateQuiz(updated));
+  };
+
+  
 
   return (
     <div>
-      {/* Top Controls*/}
+      {/* top bar */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <InputGroup style={{ width: "300px" }}>
           <InputGroup.Text className="bg-white border-end-0">
             <CiSearch />
           </InputGroup.Text>
+          {/* search box */}
           <FormControl
             placeholder="Search for Quiz"
             className="border-start-0"
@@ -56,7 +119,7 @@ export default function Quizzes() {
           />
         </InputGroup>
         <div className="d-flex gap-2 align-items-center">
-          {/* ✅ Student View button */}
+          {/* toggle between faculty and student view */}
           <button
             className="btn btn-secondary"
             onClick={() => setStudentView(!studentView)}
@@ -64,7 +127,8 @@ export default function Quizzes() {
           >
             {studentView ? "Faculty View" : "Student View"}
           </button>
-          {currentUser?.role === "FACULTY" && !studentView && (
+          {/* add quiz button, faculty only */}
+          {isFaculty && (
             <button
               className="btn btn-danger"
               id="wd-add-quiz-btn"
@@ -77,15 +141,25 @@ export default function Quizzes() {
         </div>
       </div>
 
-      {/* Quiz List */}
+      {/* quiz list */}
       <ListGroup className="rounded-0" id="wd-quizzes">
         <ListGroupItem className="wd-module p-0 mb-5 fs-5 border-gray">
+          {/* section header */}
           <div className="wd-title p-3 ps-2 bg-secondary d-flex align-items-center">
             <BsGripVertical className="me-2 fs-3" />
             <VscTriangleDown className="me-2 fs-5" />
             <b>Assignment Quizzes</b>
           </div>
           <ListGroup className="rounded-0">
+            {courseQuizzes.length === 0 && (
+              <ListGroupItem className="p-4 text-center text-muted">
+                No quizzes yet.{" "}
+                {isFaculty
+                  ? "Click the + Quiz button above to get started."
+                  : "Check back later for available quizzes."}
+              </ListGroupItem>
+            )}
+            {/* one row per quiz */}
             {courseQuizzes.map((quiz: any) => (
               <ListGroupItem key={quiz._id} className="p-3 ps-1">
                 <div className="d-flex align-items-center">
@@ -93,6 +167,7 @@ export default function Quizzes() {
                   <FaRocket className="me-3 fs-4 text-success" />
                   <div className="flex-grow-1">
                     <div className="d-flex justify-content-between align-items-center">
+                      {/* quiz title, click to open it */}
                       <Link
                         href={`/courses/${cid}/Quizzes/${quiz._id}`}
                         className="text-dark text-decoration-none fw-bold"
@@ -100,22 +175,84 @@ export default function Quizzes() {
                         {quiz.title}
                       </Link>
                       <div className="d-flex align-items-center gap-3">
-                        <GreenCheckmark />
-                        {currentUser?.role === "FACULTY" && (
-                          <FaTrash
-                            className="text-danger"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => handleDelete(quiz._id)}
-                            id="wd-delete-quiz-click"
-                          />
+                        {/* publish icon, click to toggle */}
+                        <span
+                          style={{ cursor: isFaculty ? "pointer" : "default" }}
+                          onClick={() => isFaculty && handleTogglePublish(quiz)}
+                          title={
+                            quiz.published
+                              ? "Click to unpublish"
+                              : "Click to publish"
+                          }
+                        >
+                          {quiz.published ? "✅" : "🚫"}
+                        </span>
+
+                        {/* 3 dot menu, faculty only */}
+                        {isFaculty && (
+                          <div
+                            className="position-relative"
+                            ref={openMenuId === quiz._id ? menuRef : null}
+                          >
+                            {/* click dots to open/close the menu */}
+                            <IoEllipsisVertical
+                              className="fs-4"
+                              style={{ cursor: "pointer" }}
+                              onClick={() =>
+                                setOpenMenuId(
+                                  openMenuId === quiz._id ? null : quiz._id,
+                                )
+                              }
+                            />
+                            {/* the dropdown */}
+                            {openMenuId === quiz._id && (
+                              <div
+                                className="position-absolute end-0 bg-white border rounded shadow"
+                                style={{
+                                  zIndex: 1000,
+                                  minWidth: "150px",
+                                  top: "24px",
+                                }}
+                              >
+                                {/* go to edit page */}
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    router.push(
+                                      `/courses/${cid}/Quizzes/${quiz._id}`,
+                                    );
+                                  }}
+                                >
+                                  Edit
+                                </div>
+                                {/* delete quiz */}
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => handleDelete(quiz._id)}
+                                >
+                                  Delete
+                                </div>
+                                {/* publish or unpublish */}
+                                <div
+                                  className="px-3 py-2"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => handleTogglePublish(quiz)}
+                                >
+                                  {quiz.published ? "Unpublish" : "Publish"}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
-                        <IoEllipsisVertical
-                          className="fs-4"
-                          style={{ cursor: "pointer" }}
-                        />
                       </div>
                     </div>
+
+                    {/* info line under the title */}
                     <div className="small mt-1 text-muted">
+                      {/* show different text based on status */}
                       {quiz.status === "Closed" && (
                         <span className="fw-bold">Closed</span>
                       )}
@@ -134,6 +271,7 @@ export default function Quizzes() {
                         </span>
                       )}{" "}
                       | <b>Due</b>{" "}
+                      {/* red if multiple due dates */}
                       <span
                         className={
                           quiz.dueDate === "Multiple Dates" ? "text-danger" : ""
