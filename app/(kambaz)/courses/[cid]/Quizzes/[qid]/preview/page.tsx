@@ -148,7 +148,7 @@ export default function QuizPreviewPage() {
         <h5 className="mb-2">
           Q{idx + 1}. {q.title || "Untitled Question"}
         </h5>
-        <span>{q.points || 0} pts</span>
+        <span>{q.points || 0} pt{(q.points || 0) !== 1 ? "s" : ""}</span>
       </div>
       <div className="mb-3">{q.question}</div>
 

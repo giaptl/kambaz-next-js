@@ -29,7 +29,7 @@ export default function MultipleChoiceEditor({ question, onSave, onCancel }: any
           value={local.points}
           onChange={(e) => setLocal({ ...local, points: Number(e.target.value) })}
         />
-        <span className="align-self-center">pts</span>
+        <span className="align-self-center">pt{local.points !== 1 ? "s" : ""}</span>
       </div>
 
       {/* the prompt that students can read*/}

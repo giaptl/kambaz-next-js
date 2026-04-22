@@ -34,7 +34,7 @@ export default function FillInBlankEditor({ question, onSave, onCancel }: any) {
           value={local.points}
           onChange={(e) => setLocal({ ...local, points: Number(e.target.value) })}
         />
-        <span className="align-self-center">pts</span>
+        <span className="align-self-center">pt{local.points !== 1 ? "s" : ""}</span>
       </div>
 
       <FormLabel>Question</FormLabel>
